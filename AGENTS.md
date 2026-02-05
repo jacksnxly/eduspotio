@@ -4,7 +4,27 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-**keryx** (Greek for "herald") - A CLI tool that generates release notes from merged PRs and conventional commits.
+**eduspotio** - An open source education platform for creators and communities.
+
+Comparable to Skool, Mighty Networks, and Whop - but open source.
+
+### Core Features
+
+- **Courses & Lessons** - Structured learning content
+- **Communities & Groups** - Member spaces and discussions
+- **Live Events & Calls** - Scheduled sessions and webinars
+- **Payments & Subscriptions** - Monetization and billing
+- **Gamification** - Points, badges, and leaderboards
+
+### License
+
+AGPL v3 with enterprise features under a separate commercial license. See [LICENSE](./LICENSE) for details.
+
+## Repository Structure
+
+Monorepo - frontend, backend, and shared packages in one repository.
+
+Tech stack: TBD
 
 ## SESSION INITIALIZATION
 
@@ -51,6 +71,7 @@ Phase 4: /review-code      → Audit & verify     → Approval or fixes
 ```
 
 **Rules:**
+
 - Phase 2 requires an approved brief from Phase 1
 - Phase 3 requires an approved spec from Phase 2
 - Never skip phases - each gate ensures quality
@@ -74,6 +95,7 @@ Always update `.agent` docs after implementing features to keep them current.
 ## COMMIT GUIDELINES
 
 Use Conventional Commits:
+
 - `feat:` new features
 - `fix:` bug fixes
 - `docs:` documentation
