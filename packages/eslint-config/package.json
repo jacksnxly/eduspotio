@@ -1,0 +1,15 @@
+{
+  "name": "@eduspot/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    "./base": "./base.js",
+    "./next": "./next.js"
+  },
+  "peerDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": ">=16"
+  }
+}
