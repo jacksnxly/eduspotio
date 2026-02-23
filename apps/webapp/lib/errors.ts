@@ -14,12 +14,14 @@ export type ErrorCode = keyof typeof ERROR_CODES;
 export class ApiError extends Error {
   public readonly code: ErrorCode;
   public readonly status: number;
+  public readonly headers?: HeadersInit;
 
-  constructor({ code, message }: { code: ErrorCode; message: string }) {
+  constructor({ code, message, headers }: { code: ErrorCode; message: string; headers?: HeadersInit }) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = ERROR_CODES[code];
+    this.headers = headers;
   }
 
   public toJSON() {
@@ -47,7 +49,7 @@ export function handleApiError(
         }),
       );
     }
-    return Response.json(error.toJSON(), { status: error.status });
+    return Response.json(error.toJSON(), { status: error.status, headers: error.headers });
   }
 
   const errorId = crypto.randomUUID();

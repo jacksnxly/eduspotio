@@ -18,12 +18,26 @@ const envSchema = z.object({
   // Email (Resend — optional, logs to console in dev if missing)
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
+
+  // GitHub OAuth (optional — social sign-in disabled if missing)
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+
+  // Upstash Redis (optional — custom route rate limiting disabled if missing)
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 }).refine(
   (data) => !data.GOOGLE_CLIENT_ID === !data.GOOGLE_CLIENT_SECRET,
   { message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set or both be absent" },
 ).refine(
   (data) => !data.RESEND_API_KEY === !data.RESEND_FROM_EMAIL,
   { message: "RESEND_API_KEY and RESEND_FROM_EMAIL must both be set or both be absent" },
+).refine(
+  (data) => !data.GITHUB_CLIENT_ID === !data.GITHUB_CLIENT_SECRET,
+  { message: "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must both be set or both be absent" },
+).refine(
+  (data) => !data.UPSTASH_REDIS_REST_URL === !data.UPSTASH_REDIS_REST_TOKEN,
+  { message: "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must both be set or both be absent" },
 );
 
 export type Env = z.infer<typeof envSchema>;
