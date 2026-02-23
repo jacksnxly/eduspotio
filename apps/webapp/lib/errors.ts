@@ -32,15 +32,27 @@ export class ApiError extends Error {
   }
 }
 
-export function handleApiError(error: unknown): Response {
+export function handleApiError(
+  error: unknown,
+  context?: { method?: string; path?: string; userId?: string },
+): Response {
   if (error instanceof ApiError) {
     return Response.json(error.toJSON(), { status: error.status });
   }
 
-  console.error("Unhandled error:", error);
+  const errorId = crypto.randomUUID();
+  console.error(
+    JSON.stringify({
+      errorId,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      ...context,
+    }),
+  );
+
   const fallback = new ApiError({
     code: "internal_server_error",
-    message: "An unexpected error occurred.",
+    message: `An unexpected error occurred. Reference: ${errorId}`,
   });
   return Response.json(fallback.toJSON(), { status: fallback.status });
 }

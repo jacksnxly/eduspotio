@@ -22,15 +22,23 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-const result = envSchema.safeParse(process.env);
-
-// Skip validation during build phase — env vars validated at runtime startup
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
-if (!result.success && !isBuildPhase) {
-  console.error("Invalid environment variables:");
-  console.error(result.error.flatten().fieldErrors);
-  throw new Error("Invalid environment variables");
-}
+const result = envSchema.safeParse(process.env);
 
-export const env = (result.success ? result.data : process.env) as Env;
+// During build phase, route handlers are evaluated at module scope but not
+// executed. Return process.env so module-level reads (e.g., conditional
+// Resend init) get `undefined` for missing vars rather than crashing.
+// Real validation runs at runtime startup.
+export const env: Env = isBuildPhase
+  ? (process.env as unknown as Env)
+  : (() => {
+      if (!result.success) {
+        console.error(
+          "Invalid environment variables:",
+          result.error.flatten().fieldErrors,
+        );
+        throw new Error("Invalid environment variables. Check server logs.");
+      }
+      return result.data;
+    })();
