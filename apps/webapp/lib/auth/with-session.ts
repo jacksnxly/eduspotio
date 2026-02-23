@@ -30,7 +30,10 @@ export function withSession(handler: WithSessionHandler) {
 
       return await handler({ req, session });
     } catch (error) {
-      return handleApiError(error);
+      return handleApiError(error, {
+        method: req.method,
+        path: new URL(req.url).pathname,
+      });
     }
   };
 }

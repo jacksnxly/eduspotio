@@ -71,7 +71,10 @@ export type PermissionRequest = Parameters<
 
 export function hasPermission(role: Role, request: PermissionRequest): boolean {
   const roleDefinition = roles[role];
-  if (!roleDefinition) return false;
+  if (!roleDefinition) {
+    console.error(`[permissions] Unknown role "${role}" — possible data corruption`);
+    throw new Error(`Unknown role: ${role}`);
+  }
   const result = (
     roleDefinition.authorize as (req: PermissionRequest) => { success: boolean }
   )(request);

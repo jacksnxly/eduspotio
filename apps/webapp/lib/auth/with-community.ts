@@ -3,15 +3,14 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { ApiError, handleApiError } from "../errors";
 import { auth } from "./index";
-import { roles, type PermissionRequest, type Role } from "./permissions";
-
-type Session = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
+import { hasPermission, roles, type PermissionRequest, type Role } from "./permissions";
+import type { AuthenticatedSession } from "./types";
 
 export type WithCommunityContext = {
   req: NextRequest;
   params: Record<string, string>;
   searchParams: Record<string, string>;
-  session: Session;
+  session: AuthenticatedSession;
   community: {
     id: string;
     name: string;
@@ -111,19 +110,12 @@ export function withCommunity(
       }
 
       const userRole = membership.role;
-      const roleDefinition = roles[userRole];
 
-      if (opts?.requiredPermissions) {
-        const authorize = roleDefinition.authorize as (
-          request: PermissionRequest,
-        ) => { success: boolean; error?: string };
-        const result = authorize(opts.requiredPermissions);
-        if (!result.success) {
-          throw new ApiError({
-            code: "forbidden",
-            message: "You don't have permission to perform this action.",
-          });
-        }
+      if (opts?.requiredPermissions && !hasPermission(userRole, opts.requiredPermissions)) {
+        throw new ApiError({
+          code: "forbidden",
+          message: "You don't have permission to perform this action.",
+        });
       }
 
       // 5. Execute within RLS tenant context
@@ -152,7 +144,10 @@ export function withCommunity(
         });
       });
     } catch (error) {
-      return handleApiError(error);
+      return handleApiError(error, {
+        method: req.method,
+        path: new URL(req.url).pathname,
+      });
     }
   };
 }
