@@ -68,3 +68,12 @@ export type Role = keyof typeof roles;
 export type PermissionRequest = Parameters<
   (typeof roles)[Role]["authorize"]
 >[0];
+
+export function hasPermission(role: Role, request: PermissionRequest): boolean {
+  const roleDefinition = roles[role];
+  if (!roleDefinition) return false;
+  const result = (
+    roleDefinition.authorize as (req: PermissionRequest) => { success: boolean }
+  )(request);
+  return result.success;
+}

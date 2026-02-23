@@ -2,12 +2,11 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { ApiError, handleApiError } from "../errors";
 import { auth } from "./index";
-
-type Session = Awaited<ReturnType<typeof auth.api.getSession>>;
+import type { AuthenticatedSession } from "./types";
 
 export type WithSessionContext = {
   req: NextRequest;
-  session: NonNullable<Session>;
+  session: AuthenticatedSession;
 };
 
 type WithSessionHandler = (ctx: WithSessionContext) => Promise<Response>;

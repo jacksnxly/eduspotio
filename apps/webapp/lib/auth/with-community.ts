@@ -1,5 +1,4 @@
-import { type Database } from "@eduspot/db";
-import { tenantDB } from "@eduspot/db/helpers";
+import { type TenantDatabase, tenantDB } from "@eduspot/db/helpers";
 import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { ApiError, handleApiError } from "../errors";
@@ -28,7 +27,7 @@ export type WithCommunityContext = {
     organizationId: string;
     createdAt: Date;
   };
-  db: Database;
+  db: TenantDatabase;
 };
 
 type WithCommunityHandler = (ctx: WithCommunityContext) => Promise<Response>;
@@ -36,6 +35,10 @@ type WithCommunityHandler = (ctx: WithCommunityContext) => Promise<Response>;
 type WithCommunityOptions = {
   requiredPermissions?: PermissionRequest;
 };
+
+function isRole(value: string): value is Role {
+  return value in roles;
+}
 
 export function withCommunity(
   handler: WithCommunityHandler,
@@ -50,10 +53,11 @@ export function withCommunity(
       const searchParams = Object.fromEntries(
         new URL(req.url).searchParams.entries(),
       );
+      const reqHeaders = await headers();
 
       // 1. Validate session
       const session = await auth.api.getSession({
-        headers: await headers(),
+        headers: reqHeaders,
       });
 
       if (!session) {
@@ -72,8 +76,9 @@ export function withCommunity(
         });
       }
 
+      // TODO: getFullOrganization loads all members — optimize with a targeted membership query for large communities
       const org = await auth.api.getFullOrganization({
-        headers: await headers(),
+        headers: reqHeaders,
         query: { organizationSlug: communitySlug },
       });
 
@@ -95,15 +100,18 @@ export function withCommunity(
       }
 
       // 4. Check required permissions via role.authorize()
-      const userRole = membership.role as Role;
-      const roleDefinition = roles[userRole];
-
-      if (!roleDefinition) {
+      if (!isRole(membership.role)) {
+        console.error(
+          `Invalid role "${membership.role}" for userId=${session.user.id} orgId=${org.id}`,
+        );
         throw new ApiError({
           code: "forbidden",
           message: "Invalid role.",
         });
       }
+
+      const userRole = membership.role;
+      const roleDefinition = roles[userRole];
 
       if (opts?.requiredPermissions) {
         const authorize = roleDefinition.authorize as (
