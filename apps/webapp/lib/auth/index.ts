@@ -25,6 +25,11 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
   emailVerification: {
+    // KNOWN LIMITATION: BetterAuth persists the user BEFORE calling
+    // sendVerificationEmail. If this callback throws, the user exists in DB
+    // but the client sees 500. A "resend verification email" endpoint is
+    // required to recover from this state.
+    // See: https://github.com/better-auth/better-auth/issues/6436
     sendVerificationEmail: async ({ user, url }) => {
       if (!resend) {
         if (process.env.NODE_ENV === "production") {
@@ -36,17 +41,31 @@ export const auth = betterAuth({
         return;
       }
       const from = env.RESEND_FROM_EMAIL ?? "noreply@mail.eduspot.io";
-      const safeUrl = url.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
-      try {
-        await resend.emails.send({
-          from: `${env.NEXT_PUBLIC_APP_NAME} <${from}>`,
-          to: user.email,
-          subject: "Verify your email address",
-          html: `<p>Click <a href="${safeUrl}">here</a> to verify your email address.</p>`,
-        });
-      } catch (error) {
-        console.error("[auth] Failed to send verification email:", error);
-        throw error;
+      const safeUrl = url
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#x27;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+      const { error: sendError } = await resend.emails.send({
+        from: `${env.NEXT_PUBLIC_APP_NAME} <${from}>`,
+        to: user.email,
+        subject: "Verify your email address",
+        html: `<p>Click <a href="${safeUrl}">here</a> to verify your email address.</p>`,
+      });
+      if (sendError) {
+        console.error(
+          "[auth] Resend API error sending verification email:",
+          {
+            errorName: sendError.name,
+            errorMessage: sendError.message,
+            userEmail: user.email,
+          },
+        );
+        throw new Error(
+          `Failed to send verification email: ${sendError.message}`,
+        );
       }
     },
   },
