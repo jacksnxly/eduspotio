@@ -1,4 +1,4 @@
-# Session Summary 2026-02-19
+# Session Summary 2026-02-23 (Session 3 — Gap Analysis & Foundation Prep)
 
 ## Developer
 
@@ -6,131 +6,141 @@
 
 ## Session Objective
 
-Implement the Database Package & Monorepo Infrastructure spec (`SPEC-db-package-monorepo-infra-2026-02-19.md`): set up pnpm workspace, migrate Turborepo to v2, create shared config packages (tsconfig, eslint, tailwind), build the `@eduspot/db` Drizzle ORM package with the full schema from `architecture.md`, and add Docker Compose for local PostgreSQL.
+Close the foundation gaps between eduspotio and a mature open-source SaaS (dub.co) so the project is ready to begin Phase 0 (auth, base UI, API patterns). Fix the 4 blocking schema issues from the previous code review, set up testing infrastructure, CI/CD, code formatting, and foundational lib patterns.
+
+## What Happened
+
+### 1. Team Structure & Parallelization Strategy
+Discussed how to structure eduspotio development with manpower, applying ops management principles (Brooks' Law, Little's Law, orchard vs. baby analogy). Defined a concrete team structure:
+- **Phase 0** (sequential "baby"): 2-3 devs on auth, base UI, API patterns (1-2 weeks)
+- **Phase 1** (parallel "orchard"): 5-6 stream-aligned teams on courses, communities, billing, notifications, marketing (4-6 weeks)
+- Total to MVP: ~12-15 devs, ~6-8 weeks
+
+### 2. Gap Analysis: eduspotio vs. dub.co
+Spawned 3 parallel research agents to deeply analyze dub's codebase:
+- **Database Foundation Agent** — ORM, schema, migrations, connection patterns, dependency versioning
+- **Monorepo Infrastructure Agent** — workspace setup, shared packages, CI/CD, env management
+- **Auth & API Patterns Agent** — authentication, API layer, middleware, error handling, testing
+
+Key findings:
+- dub uses Prisma v6 (exact pinned versions), eduspotio uses Drizzle beta (unpinned)
+- dub has `withWorkspace()` HOF pattern for auth + permissions + rate limiting
+- dub has Vitest + IntegrationHarness for E2E testing
+- dub has GitHub Actions CI, Prettier, Dependabot
+- eduspotio's RLS approach is stronger than dub's app-level filtering (keep it)
+- eduspotio's Drizzle choice is more modern than dub's Prisma
+
+### 3. Foundation Fixes — 4 Parallel Agents
+Spawned 4 agents with non-overlapping file boundaries to close gaps:
+
+**Agent 1: DB Schema Fixes** (packages/db/ only)
+- Fixed leaderboard table missing primary key
+- Added self-referential FK on comments.parentCommentId
+- Added bufferutil dependency
+
+**Agent 2: Testing Infrastructure** (apps/webapp/ only)
+- Set up Vitest with vite-tsconfig-paths
+- Created smoke test (2 passing tests)
+
+**Agent 3: CI/CD & Formatting** (.github/, root configs only)
+- GitHub Actions CI workflow (build, lint, format check, test)
+- Dependabot config (weekly, grouped PRs)
+- Prettier config with tailwindcss + organize-imports plugins
+
+**Agent 4: Environment & Foundation** (apps/webapp/lib/ only)
+- .env.example with documented sections
+- ApiError typed error class + handleApiError utility
+- lib/auth/ and lib/api/ directory structure
+
+### 4. VCTK Updated
+Updated vibe-coding-toolkit to v0.1.0, gaining 3 new commands:
+- `/vctk-challenge` — adversarial review
+- `/vctk-techdebt` — tech debt scanner
+- `/vctk-learn` — extract lessons to CLAUDE.md
 
 ## Files Modified
 
 ### Created
-- `package.json` — Root workspace package.json with `packageManager: pnpm@10.29.2`, turbo scripts, db scripts
-- `pnpm-workspace.yaml` — Root workspace config with `packages` and `onlyBuiltDependencies`
-- `docker-compose.yml` — PostgreSQL 17 for local development
-- `.env.example` — DATABASE_URL templates for Docker and Neon
-- `packages/tsconfig/package.json` — @eduspot/tsconfig package manifest
-- `packages/tsconfig/base.json` — Base TypeScript config (ES2022, strict, bundler)
-- `packages/tsconfig/nextjs.json` — Next.js TypeScript config extending base
-- `packages/tsconfig/library.json` — Library TypeScript config extending base
-- `packages/eslint-config/package.json` — @eduspot/eslint-config package manifest
-- `packages/eslint-config/base.js` — Base ESLint flat config
-- `packages/eslint-config/next.js` — Next.js ESLint flat config (core-web-vitals + typescript)
-- `packages/tailwind-config/package.json` — @eduspot/tailwind-config package manifest
-- `packages/tailwind-config/theme.css` — Brand design tokens via `@theme` directive (oklch colors, fonts, radii)
-- `packages/tailwind-config/postcss.config.js` — Shared PostCSS config with `@tailwindcss/postcss`
-- `packages/db/package.json` — @eduspot/db package manifest (drizzle-orm@beta, @neondatabase/serverless, ws)
-- `packages/db/tsconfig.json` — DB package TypeScript config extending library.json
-- `packages/db/drizzle.config.ts` — Drizzle Kit config with Neon provider, tablesFilter excluding BetterAuth tables
-- `packages/db/src/schema/enums.ts` — All 9 pgEnum definitions
-- `packages/db/src/schema/auth-refs.ts` — BetterAuth table stubs (user, organization) for relation definitions only
-- `packages/db/src/schema/community.ts` — communitySettings, domains tables with RLS policies
-- `packages/db/src/schema/spaces.ts` — spaceGroups, spaces, spaceMemberships tables with RLS
-- `packages/db/src/schema/content.ts` — posts, comments, reactions tables with RLS + feed indexes
-- `packages/db/src/schema/courses.ts` — courses, modules, lessons, enrollments, lessonProgress with RLS
-- `packages/db/src/schema/billing.ts` — customers, products, prices, subscriptions, plans, planSpaceAccess, planCourseAccess, memberships with RLS
-- `packages/db/src/schema/notifications.ts` — notifications table with RLS
-- `packages/db/src/schema/media.ts` — media table with RLS
-- `packages/db/src/schema/gamification.ts` — points, leaderboard tables with RLS
-- `packages/db/src/schema/index.ts` — Barrel export of all tables, enums, auth-refs
-- `packages/db/src/relations.ts` — Full defineRelations() v2 config for all 22 tables
-- `packages/db/src/client.ts` — Neon WebSocket drizzle client factory with conditional ws import
-- `packages/db/src/helpers/tenant.ts` — tenantDB() wrapper using SET LOCAL for RLS context
-- `packages/db/src/helpers/soft-delete.ts` — notDeleted() filter helper
-- `packages/db/src/helpers/pagination.ts` — Cursor-based keyset pagination helper
-- `packages/db/src/helpers/index.ts` — Barrel export of helpers
-- `packages/db/src/index.ts` — Public API: re-exports schema, client, relations
+- `.github/workflows/ci.yml` - GitHub Actions CI pipeline (build, lint, format, test)
+- `.github/dependabot.yml` - Weekly dependency update automation
+- `apps/webapp/.env.example` - Environment variable documentation
+- `apps/webapp/vitest.config.ts` - Vitest configuration
+- `apps/webapp/tests/smoke.test.ts` - Basic smoke tests (2 passing)
+- `apps/webapp/lib/errors.ts` - Typed ApiError class with handleApiError
+- `apps/webapp/lib/auth/index.ts` - BetterAuth integration placeholder
+- `apps/webapp/lib/api/.gitkeep` - API directory structure
+- `.claude/commands/vctk-challenge.md` - VCTK adversarial review command
+- `.claude/commands/vctk-learn.md` - VCTK lesson extraction command
+- `.claude/commands/vctk-techdebt.md` - VCTK tech debt scanner command
 
 ### Modified
-- `turbo.json` — Migrated from v1 (`pipeline`) to v2 (`tasks`), updated `$schema` URL, added db tasks
-- `apps/webapp/package.json` — Added workspace deps (@eduspot/*), updated lint script to `eslint .`
-- `apps/webapp/tsconfig.json` — Now extends `@eduspot/tsconfig/nextjs.json`
-- `apps/webapp/eslint.config.mjs` — Now extends `@eduspot/eslint-config/next`
-- `apps/webapp/next.config.ts` — Added `transpilePackages: ["@eduspot/db"]`
-- `apps/webapp/app/globals.css` — Added `@import "@eduspot/tailwind-config/theme.css"` and `@source` directive
-- `apps/marketing/package.json` — Same as webapp + dev port 3001
-- `apps/marketing/tsconfig.json` — Same as webapp
-- `apps/marketing/eslint.config.mjs` — Same as webapp
-- `apps/marketing/next.config.ts` — Same as webapp
-- `apps/marketing/app/globals.css` — Added `@import "@eduspot/tailwind-config/theme.css"`
+- `packages/db/src/schema/gamification.ts` - Added `id` primary key to leaderboard table
+- `packages/db/src/schema/content.ts` - Added self-referential FK on parentCommentId with onDelete: "set null"
+- `packages/db/package.json` - Added bufferutil dependency
+- `package.json` - Added test, format, format:check scripts + prettier deps
+- `apps/webapp/package.json` - Added vitest, vite-tsconfig-paths, test script
+- `prettier.config.js` - Updated to ESM with tailwindcss + organize-imports plugins
+- `.prettierignore` - Added drizzle to ignore list
+- `pnpm-workspace.yaml` - Added bufferutil to onlyBuiltDependencies
+- `pnpm-lock.yaml` - Updated with all new dependencies
 
-### Deleted
-- `apps/webapp/pnpm-workspace.yaml` — Deprecated per-app file (moved to root)
-- `apps/webapp/pnpm-lock.yaml` — Stale per-app lockfile
-- `apps/marketing/pnpm-workspace.yaml` — Deprecated per-app file (moved to root)
-- `apps/marketing/pnpm-lock.yaml` — Stale per-app lockfile
+## Technical Decisions
 
-## Implementation Details
-
-### Main Changes
-Complete monorepo infrastructure and database package implementation per the approved spec. The project went from two standalone Next.js apps with no shared packages to a properly configured pnpm v10 workspace with Turborepo 2.0, 4 shared packages, and a full Drizzle ORM database schema implementing 22 tables with Row-Level Security policies.
-
-### Technical Decisions
-1. **BetterAuth table exclusion:** Used `tablesFilter` in `drizzle.config.ts` to exclude all 9 BetterAuth-managed tables from migration generation, rather than moving auth-refs.ts outside the schema directory. This keeps the file structure matching the spec while preventing unwanted migrations.
-2. **RLS via inline pgPolicy():** All tenant-scoped tables use inline `pgPolicy()` in the table definition's third argument, which auto-enables RLS in Drizzle v1 beta (no need for `.enableRLS()` or `.withRLS()`).
-3. **`appUser` role:** Defined once in `community.ts` with `.existing()` and imported by all other schema files for RLS policy targeting.
-4. **Relations v2:** Used `defineRelations()` with dot-notation API per Drizzle v1 beta docs. Self-referential relation on comments (parent/replies) uses `alias` parameter.
-5. **Marketing port:** Set to 3001 to avoid conflict with webapp on 3000.
-
-### Code Structure
-```
-packages/
-├── tsconfig/         # @eduspot/tsconfig — shared TS configs
-├── eslint-config/    # @eduspot/eslint-config — ESLint flat config
-├── tailwind-config/  # @eduspot/tailwind-config — brand tokens + PostCSS
-└── db/               # @eduspot/db — Drizzle ORM schema + client + helpers
-    └── src/
-        ├── schema/   # 9 schema files + barrel (22 tables, 9 enums)
-        ├── relations.ts  # defineRelations() for all tables
-        ├── client.ts     # Neon WebSocket drizzle client
-        ├── helpers/      # tenantDB, soft-delete, pagination
-        └── index.ts      # Public API
-```
+| Decision | Choice | Reasoning |
+|----------|--------|-----------|
+| Skip dependency pinning | User decision | Will use Dependabot for automated version management instead |
+| Keep RLS over app-level filtering | Architecture | Stronger tenant isolation than dub's approach, worth the complexity |
+| ApiError class pattern | Adopted from dub | Consistent typed error responses across all API routes |
+| Vitest over Jest | Modern choice | Faster, native ESM, matches dub's setup |
+| Prettier plugins | tailwindcss + organize-imports | Same as dub — proven combo for Next.js + Tailwind projects |
+| Self-ref FK onDelete: "set null" | Domain logic | Child comments should survive parent deletion |
 
 ## Workflow Progress
 
 | Phase | Document | Status |
 |-------|----------|--------|
-| Brief | .agent/briefs/BRIEF-db-package-monorepo-infra-2026-02-19.md | Created (prior session) |
+| Brief | .agent/briefs/BRIEF-db-package-monorepo-infra-2026-02-19.md | Approved |
 | Spec | .agent/specs/SPEC-db-package-monorepo-infra-2026-02-19.md | Approved |
-| Implementation | packages/*, turbo.json, apps/*/config files | Complete |
-| Review | /vctk-review-code | Pending |
+| Implementation | packages/*, apps/*, .github/*, root configs | Complete |
+| Review | 4 blocking issues from Session 2 | **All 4 fixed** |
 
 ## Testing & Validation
 
-- `pnpm install` — All 7 workspace packages resolved, 445 packages installed
-- `turbo run build` — 2/2 apps compile successfully (Next.js 16.1.6, no warnings)
-- `turbo run lint` — 2/2 apps pass ESLint flat config checks
-- TypeScript compilation verified through Next.js build (strict mode)
+- `pnpm run build` — 2/2 apps passing
+- `pnpm run lint` — 2/2 apps passing
+- `pnpm run test` — 1 test file, 2 tests passing (Vitest 4.0.18)
+- `pnpm install` — Clean install, bufferutil builds successfully
 
 ## Current State
 
-All infrastructure and schema code is written and verified via build/lint. Changes are **uncommitted** on the `feat/db-init` branch. No migrations have been generated yet (requires a running database). The project is ready for `/vctk-review-code` audit and then commit.
+The project is **ready for Phase 0**. All blocking issues are resolved, foundation gaps are closed:
+- Schema integrity: All tables have PKs, all FKs are explicit
+- Testing: Vitest configured and passing
+- CI/CD: GitHub Actions ready for first push to main
+- Code quality: Prettier configured
+- Dependency management: Dependabot configured
+- Foundation patterns: ApiError class, lib/ structure, .env.example
+
+**Changes are NOT yet committed.** Working tree has staged-ready changes.
 
 ## Blockers/Issues
 
-- **No migration smoke test yet** — Requires a running PostgreSQL instance (Docker or Neon) to run `drizzle-kit generate` and `drizzle-kit migrate`
-- **Drizzle v1 beta stability** — Using `@beta` tag; API surface may change between beta releases. Pin exact versions before production.
-- **`@source` directive for db package** — Only added to webapp's globals.css (marketing likely won't need db classes, but can be added later if needed)
+- None. All 4 blocking issues from Session 2 are resolved.
 
 ## Next Steps
 
-1. **Run `/vctk-review-code`** to audit implementation against spec
-2. **Commit all changes** to `feat/db-init` branch
-3. **Start Docker Compose** and run `drizzle-kit generate` + `drizzle-kit migrate` to verify migrations
-4. **Verify BetterAuth exclusion** — Confirm generated SQL has no CREATE TABLE for auth tables
-5. **Set up BetterAuth** — Next feature brief for authentication integration
-6. **Create PR** for this feature branch
+1. **Commit all changes** to `feat/db-init` branch
+2. **Create PR** for `feat/db-init` → main
+3. **Start Phase 0: BetterAuth integration** via `/vctk-feature-brief`
+   - Auth is the single biggest unlock — nothing else works without it
+   - Need: `withCommunity()` HOF (equivalent to dub's `withWorkspace()`)
+   - Need: RBAC permission matrix
+4. **Base UI shell** — layout, navigation, auth pages
+5. **API pattern** — establish server action / route handler conventions
 
 ## Related Documentation
 
-- `.agent/specs/SPEC-db-package-monorepo-infra-2026-02-19.md` — The approved technical spec for this implementation
-- `.agent/briefs/BRIEF-db-package-monorepo-infra-2026-02-19.md` — The feature brief
-- `.agent/System/architecture.md` — Full architecture document with schema definitions
+- `.agent/specs/SPEC-db-package-monorepo-infra-2026-02-19.md` — Approved technical spec
+- `.agent/briefs/BRIEF-db-package-monorepo-infra-2026-02-19.md` — Feature brief
+- `.agent/System/architecture.md` — Full architecture with schema definitions
 - `.agent/README.md` — Project documentation index

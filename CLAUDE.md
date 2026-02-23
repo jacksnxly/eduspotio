@@ -103,3 +103,27 @@ Use Conventional Commits:
 - `test:` adding tests
 
 **IMPORTANT:** Always ask for approval before committing or pushing.
+
+## TECH STACK
+
+- **Framework:** Next.js 16 (App Router) + React 19
+- **Database:** PostgreSQL (Neon serverless) + Drizzle ORM
+- **Auth:** BetterAuth (planned)
+- **Styling:** Tailwind CSS 4
+- **Testing:** Vitest
+- **CI/CD:** GitHub Actions + Dependabot
+- **Monorepo:** pnpm workspaces + Turborepo
+
+## REFERENCE ARCHITECTURE
+
+Use `~/Projects/dub/` (dub.co) as a mature SaaS reference when designing patterns:
+- `withWorkspace()`-style HOF for auth + permissions + rate limiting
+- Typed `ApiError` class for consistent error responses
+- Zod validation at all API boundaries
+- `next-safe-action` for type-safe server actions
+
+## Learned Rules
+
+- Do not pin dependency versions to exact — use `latest` or `beta` tags. Dependabot handles automated version management via grouped weekly PRs. <!-- learned 2026-02-23 -->
+- Use `~/Projects/dub/` as reference architecture for SaaS patterns (auth HOF, error handling, API design, RBAC). Consult it when designing new foundational patterns. <!-- learned 2026-02-23 -->
+- When spawning parallel agent teams for code changes, assign each agent a distinct set of files/directories with zero overlap. Run `pnpm install` once after all agents complete, not per-agent. <!-- learned 2026-02-23 -->
