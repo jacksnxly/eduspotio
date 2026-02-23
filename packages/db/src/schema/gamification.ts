@@ -38,6 +38,7 @@ export const points = pgTable(
 export const leaderboard = pgTable(
   "leaderboard",
   {
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id").notNull(),
     communityId: text("community_id").notNull(),
     totalPoints: integer("total_points").default(0),

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "latest",
+    "bufferutil": "latest",
     "drizzle-orm": "beta",
     "ws": "latest"
   },

@@ -61,7 +61,7 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
-    parentCommentId: uuid("parent_comment_id"),
+    parentCommentId: uuid("parent_comment_id").references(() => comments.id, { onDelete: "set null" }),
     content: jsonb("content").notNull(),
     contentHtml: text("content_html"),
     reactionCount: integer("reaction_count").default(0),
