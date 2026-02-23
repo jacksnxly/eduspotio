@@ -80,7 +80,7 @@ export const member = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    role: text("role").notNull(),
+    role: text("role").notNull().$type<"owner" | "moderator" | "creator" | "member">(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [unique("member_org_user_unique").on(t.organizationId, t.userId)],

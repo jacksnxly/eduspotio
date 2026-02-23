@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, type Database } from "../client";
+import { db } from "../client";
 
 export type TenantDatabase = Parameters<
   Parameters<typeof db.transaction>[0]

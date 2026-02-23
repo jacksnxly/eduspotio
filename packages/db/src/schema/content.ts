@@ -53,7 +53,7 @@ export const posts = pgTable(
   ],
 );
 
-// @ts-ignore — Self-referencing FK (parentCommentId → comments.id) causes circular type inference
+// @ts-expect-error — Drizzle v2 self-referencing FK type issue
 export const comments = pgTable(
   "comments",
   {
@@ -62,7 +62,7 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
-    // @ts-ignore — Self-referencing FK: circular type inference is expected
+    // @ts-expect-error — Drizzle v2 self-referencing FK type issue
     parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
       onDelete: "set null",
     }),
