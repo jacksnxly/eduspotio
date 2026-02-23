@@ -2,6 +2,7 @@ import { type TenantDatabase, tenantDB } from "@eduspot/db/helpers";
 import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { ApiError, handleApiError } from "../errors";
+import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
 import { hasPermission, roles, type PermissionRequest, type Role } from "./permissions";
 import type { AuthenticatedSession } from "./types";
@@ -27,6 +28,7 @@ export type WithCommunityContext = {
     createdAt: Date;
   };
   db: TenantDatabase;
+  rateLimitHeaders: HeadersInit;
 };
 
 type WithCommunityHandler = (ctx: WithCommunityContext) => Promise<Response>;
@@ -66,7 +68,19 @@ export function withCommunity(
         });
       }
 
-      // 2. Resolve community from URL param (slug or ID)
+      // 2. Rate limit by userId (after session check)
+      const { success: rateLimitSuccess, headers: rateLimitHeaders } =
+        await rateLimit(`user:${session.user.id}`);
+
+      if (!rateLimitSuccess) {
+        throw new ApiError({
+          code: "rate_limit_exceeded",
+          message: "Too many requests. Please try again later.",
+          headers: rateLimitHeaders,
+        });
+      }
+
+      // 3. Resolve community from URL param (slug or ID)
       const communitySlug = params.communitySlug || params.slug;
       if (!communitySlug) {
         throw new ApiError({
@@ -76,10 +90,18 @@ export function withCommunity(
       }
 
       // TODO: getFullOrganization loads all members — optimize with a targeted membership query for large communities
-      const org = await auth.api.getFullOrganization({
-        headers: reqHeaders,
-        query: { organizationSlug: communitySlug },
-      });
+      // BetterAuth throws (instead of returning null) when the org doesn't exist,
+      // so we catch and convert to our ApiError.
+      let org: Awaited<ReturnType<typeof auth.api.getFullOrganization>>;
+      try {
+        org = await auth.api.getFullOrganization({
+          headers: reqHeaders,
+          query: { organizationSlug: communitySlug },
+        });
+      } catch {
+        // getFullOrganization throws for non-existent slugs
+        org = null;
+      }
 
       if (!org) {
         throw new ApiError({
@@ -88,7 +110,7 @@ export function withCommunity(
         });
       }
 
-      // 3. Check membership
+      // 4. Check membership
       const membership = org.members.find((m) => m.userId === session.user.id);
 
       if (!membership) {
@@ -98,7 +120,7 @@ export function withCommunity(
         });
       }
 
-      // 4. Check required permissions via role.authorize()
+      // 5. Check required permissions via role.authorize()
       if (!isRole(membership.role)) {
         console.error(
           `Invalid role "${membership.role}" for userId=${session.user.id} orgId=${org.id}`,
@@ -118,7 +140,7 @@ export function withCommunity(
         });
       }
 
-      // 5. Execute within RLS tenant context
+      // 6. Execute within RLS tenant context
       return await tenantDB(org.id, async (tx) => {
         return handler({
           req,
@@ -141,6 +163,7 @@ export function withCommunity(
             createdAt: membership.createdAt,
           },
           db: tx,
+          rateLimitHeaders,
         });
       });
     } catch (error) {
