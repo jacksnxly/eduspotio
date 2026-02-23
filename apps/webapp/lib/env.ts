@@ -17,6 +17,7 @@ const envSchema = z.object({
 
   // Email (Resend — optional, logs to console in dev if missing)
   RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().email().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

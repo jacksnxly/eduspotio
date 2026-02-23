@@ -24,12 +24,17 @@ export const auth = betterAuth({
         console.log(`[dev] Verification email for ${user.email}: ${url}`);
         return;
       }
-      await resend.emails.send({
-        from: `${env.NEXT_PUBLIC_APP_NAME} <noreply@${new URL(env.NEXT_PUBLIC_APP_URL).hostname}>`,
-        to: user.email,
-        subject: "Verify your email address",
-        html: `<p>Click <a href="${url}">here</a> to verify your email address.</p>`,
-      });
+      const from = env.RESEND_FROM_EMAIL ?? "noreply@mail.eduspot.io";
+      try {
+        await resend.emails.send({
+          from: `${env.NEXT_PUBLIC_APP_NAME} <${from}>`,
+          to: user.email,
+          subject: "Verify your email address",
+          html: `<p>Click <a href="${url}">here</a> to verify your email address.</p>`,
+        });
+      } catch (error) {
+        console.error("[auth] Failed to send verification email:", error);
+      }
     },
   },
   socialProviders: {
