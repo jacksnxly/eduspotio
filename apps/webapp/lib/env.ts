@@ -18,7 +18,13 @@ const envSchema = z.object({
   // Email (Resend — optional, logs to console in dev if missing)
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
-});
+}).refine(
+  (data) => !data.GOOGLE_CLIENT_ID === !data.GOOGLE_CLIENT_SECRET,
+  { message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set or both be absent" },
+).refine(
+  (data) => !data.RESEND_API_KEY === !data.RESEND_FROM_EMAIL,
+  { message: "RESEND_API_KEY and RESEND_FROM_EMAIL must both be set or both be absent" },
+);
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -26,19 +32,25 @@ const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const result = envSchema.safeParse(process.env);
 
-// During build phase, route handlers are evaluated at module scope but not
-// executed. Return process.env so module-level reads (e.g., conditional
-// Resend init) get `undefined` for missing vars rather than crashing.
-// Real validation runs at runtime startup.
-export const env: Env = isBuildPhase
-  ? (process.env as unknown as Env)
-  : (() => {
-      if (!result.success) {
-        console.error(
-          "Invalid environment variables:",
-          result.error.flatten().fieldErrors,
-        );
-        throw new Error("Invalid environment variables. Check server logs.");
-      }
-      return result.data;
-    })();
+function parseEnv(): Env {
+  if (isBuildPhase) {
+    // WARNING: During `next build`, route handler modules are loaded (top-level
+    // code runs) even though no HTTP requests are served. Skip throwing so the
+    // build doesn't crash when env vars are absent. Real validation happens at
+    // runtime startup. Do NOT add module-level code that assumes validated env
+    // values outside of function bodies.
+    return process.env as unknown as Env;
+  }
+
+  if (!result.success) {
+    console.error(
+      "Invalid environment variables:",
+      result.error.flatten().fieldErrors,
+    );
+    throw new Error("Invalid environment variables. Check server logs.");
+  }
+
+  return result.data;
+}
+
+export const env: Env = parseEnv();

@@ -37,6 +37,16 @@ export function handleApiError(
   context?: { method?: string; path?: string; userId?: string },
 ): Response {
   if (error instanceof ApiError) {
+    if (error.code === "unauthorized" || error.code === "forbidden" || error.code === "rate_limit_exceeded") {
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          code: error.code,
+          message: error.message,
+          ...(context && context),
+        }),
+      );
+    }
     return Response.json(error.toJSON(), { status: error.status });
   }
 
