@@ -135,3 +135,5 @@ Use `~/Projects/dub/` (dub.co) as a mature SaaS reference when designing pattern
 - Env validation in `lib/env.ts` must skip the throw during `next build` — route handlers trigger module evaluation at build time. Guard with `process.env.NEXT_PHASE === "phase-production-build"`. <!-- learned 2026-02-23 -->
 - Drizzle v2 composite unique constraints use standalone `unique()` from `drizzle-orm/pg-core`, NOT `t.unique()`. Syntax: `(t) => [unique("constraint_name").on(t.col1, t.col2)]`. <!-- learned 2026-02-23 -->
 - Prefer `@ts-expect-error` over `@ts-ignore` for Drizzle self-referencing FK suppression — it acts as a canary that flags when the upstream bug is fixed. <!-- learned 2026-02-23 -->
+- Resend Node.js SDK does NOT throw on API errors — it resolves with `{ data, error }`. Always destructure the return and check `error` explicitly. A `try/catch` around `resend.emails.send()` will not catch 401/403/422/429 failures. <!-- learned 2026-02-23 -->
+- Use `typeof auth.$Infer.Session` for BetterAuth session type inference, not `Awaited<ReturnType<typeof auth.api.getSession>>`. The `$Infer` API is the official stable inference surface. <!-- learned 2026-02-23 -->
