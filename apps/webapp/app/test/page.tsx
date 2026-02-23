@@ -8,7 +8,7 @@ export default function AuthTestPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
-  const [result, setResult] = useState<unknown>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
 
   const { data: session, isPending, error } = authClient.useSession();
