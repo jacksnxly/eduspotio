@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run --no-file-parallelism --bail=1"
   },
   "dependencies": {
     "@eduspot/db": "workspace:*",
@@ -22,15 +22,20 @@
     "@eduspot/eslint-config": "workspace:*",
     "@eduspot/tailwind-config": "workspace:*",
     "@eduspot/tsconfig": "workspace:*",
+    "@neondatabase/serverless": "^1.0.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
+    "drizzle-orm": "1.0.0-beta.15-859cf75",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^7.3.1",
     "vite-tsconfig-paths": "latest",
-    "vitest": "latest"
+    "vitest": "latest",
+    "ws": "^8.19.0"
   }
 }
