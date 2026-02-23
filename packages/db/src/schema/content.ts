@@ -11,8 +11,8 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { postTypeEnum } from "./enums";
 import { appUser } from "./community";
+import { postTypeEnum } from "./enums";
 import { spaces } from "./spaces";
 
 export const posts = pgTable(
@@ -61,7 +61,9 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
-    parentCommentId: uuid("parent_comment_id").references(() => comments.id, { onDelete: "set null" }),
+    parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
+      onDelete: "set null",
+    }),
     content: jsonb("content").notNull(),
     contentHtml: text("content_html"),
     reactionCount: integer("reaction_count").default(0),

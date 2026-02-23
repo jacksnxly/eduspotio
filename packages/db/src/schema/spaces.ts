@@ -11,8 +11,8 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accessLevelEnum, spaceTypeEnum } from "./enums";
 import { appUser } from "./community";
+import { accessLevelEnum, spaceTypeEnum } from "./enums";
 
 export const spaceGroups = pgTable(
   "space_groups",

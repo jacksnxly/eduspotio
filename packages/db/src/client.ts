@@ -1,7 +1,7 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import * as schema from "./schema";
 import { relations } from "./relations";
+import * as schema from "./schema";
 
 if (typeof WebSocket === "undefined") {
   const ws = await import("ws");

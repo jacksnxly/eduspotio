@@ -11,13 +11,13 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { appUser } from "./community";
 import {
   dripTypeEnum,
   enrollmentStatusEnum,
   lessonTypeEnum,
   progressStatusEnum,
 } from "./enums";
-import { appUser } from "./community";
 import { spaces } from "./spaces";
 
 export const courses = pgTable(

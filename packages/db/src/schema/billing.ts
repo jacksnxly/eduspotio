@@ -12,8 +12,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { appUser } from "./community";
-import { spaces } from "./spaces";
 import { courses } from "./courses";
+import { spaces } from "./spaces";
 
 export const customers = pgTable("customers", {
   userId: text("user_id").primaryKey(),

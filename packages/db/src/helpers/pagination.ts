@@ -12,5 +12,8 @@ export function cursorWhere(
   cursor: CursorInput | undefined,
 ): SQL | undefined {
   if (!cursor) return undefined;
-  return and(lt(orderColumn, cursor.cursorValue), lt(idColumn, cursor.cursorId));
+  return and(
+    lt(orderColumn, cursor.cursorValue),
+    lt(idColumn, cursor.cursorId),
+  );
 }

@@ -117,6 +117,7 @@ Use Conventional Commits:
 ## REFERENCE ARCHITECTURE
 
 Use `~/Projects/dub/` (dub.co) as a mature SaaS reference when designing patterns:
+
 - `withWorkspace()`-style HOF for auth + permissions + rate limiting
 - Typed `ApiError` class for consistent error responses
 - Zod validation at all API boundaries
