@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-const PUBLIC_PATHS = ["/api/auth", "/login", "/signup", "/verify-email"];
+const PUBLIC_PATHS = ["/api/auth", "/login", "/signup", "/verify-email", "/test"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,10 +11,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for session cookie (BetterAuth default cookie name)
-  const sessionCookie =
-    request.cookies.get("better-auth.session_token") ||
-    request.cookies.get("__Secure-better-auth.session_token");
+  // IMPORTANT: This is an OPTIMISTIC check only. It verifies cookie existence,
+  // NOT session validity. Expired, revoked, or tampered cookies pass this check.
+  // All protected API routes and pages MUST independently validate sessions via
+  // auth.api.getSession(). See: https://nextjs.org/docs/app/guides/authentication
+  const sessionCookie = getSessionCookie(request);
 
   if (!sessionCookie) {
     const loginUrl = new URL("/login", request.url);
