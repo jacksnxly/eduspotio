@@ -1,5 +1,7 @@
 node_modules
-pnpm-lock.yaml
 .next
-.turbo
 dist
+drizzle
+pnpm-lock.yaml
+.agent
+.claude

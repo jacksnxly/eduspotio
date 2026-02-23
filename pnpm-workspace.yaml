@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - bufferutil
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - "@neondatabase/serverless"
