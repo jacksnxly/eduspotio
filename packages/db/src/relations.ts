@@ -158,16 +158,16 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   // Drizzle v2 type limitation: self-referencing table (parent/replies) poisons
-  // the entire comments type. All r.comments.* accesses need @ts-ignore.
+  // the entire comments type. All r.comments.* accesses need @ts-expect-error.
   // prettier-ignore
   comments: {
-    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    // @ts-expect-error — Drizzle v2 self-referencing table type issue
     post: r.one.posts({ from: r.comments.postId, to: r.posts.id, optional: false }),
-    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    // @ts-expect-error — Drizzle v2 self-referencing table type issue
     author: r.one.user({ from: r.comments.authorId, to: r.user.id, optional: false }),
-    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    // @ts-expect-error — Drizzle v2 self-referencing table type issue
     parent: r.one.comments({ from: r.comments.parentCommentId, to: r.comments.id, optional: true, alias: "parentComment" }),
-    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    // @ts-expect-error — Drizzle v2 self-referencing table type issue
     replies: r.many.comments({ alias: "parentComment" }),
   },
 
