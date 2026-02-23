@@ -1,9 +1,11 @@
 "use client";
 
 import { authClient } from "@/lib/auth/client";
+import { notFound } from "next/navigation";
 import { useState } from "react";
 
 export default function AuthTestPage() {
+  if (process.env.NODE_ENV === "production") notFound();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
