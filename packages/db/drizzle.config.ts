@@ -12,17 +12,6 @@ export default defineConfig({
       provider: "neon",
     },
   },
-  // Exclude BetterAuth-managed tables from migration generation.
-  // These stubs exist in auth-refs.ts only for Drizzle relation definitions.
-  tablesFilter: [
-    "!user",
-    "!session",
-    "!account",
-    "!verification",
-    "!organization",
-    "!member",
-    "!invitation",
-    "!team",
-    "!team_member",
-  ],
+  // Auth tables are now Drizzle-managed (defined in schema/auth.ts).
+  // No tablesFilter needed — all tables included in migrations.
 });

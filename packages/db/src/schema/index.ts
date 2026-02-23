@@ -1,4 +1,12 @@
-export { organization, user } from "./auth-refs";
+export {
+  account,
+  invitation,
+  member,
+  organization,
+  session,
+  user,
+  verification,
+} from "./auth";
 export {
   customers,
   memberships,

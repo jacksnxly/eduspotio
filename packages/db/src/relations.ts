@@ -2,16 +2,61 @@ import { defineRelations } from "drizzle-orm";
 import * as schema from "./schema";
 
 export const relations = defineRelations(schema, (r) => ({
-  // Auth stubs
+  // Auth
   user: {
+    sessions: r.many.session(),
+    accounts: r.many.account(),
+    members: r.many.member(),
     posts: r.many.posts(),
-    comments: r.many.comments(),
-    reactions: r.many.reactions(),
+    // comments and reactions omitted: self-referential comments table
+    // causes Drizzle v2 type error in many-chain. Access via posts.comments.
     spaceMemberships: r.many.spaceMemberships(),
     enrollments: r.many.enrollments(),
     lessonProgress: r.many.lessonProgress(),
     notifications: r.many.notifications(),
     points: r.many.points(),
+  },
+
+  session: {
+    user: r.one.user({
+      from: r.session.userId,
+      to: r.user.id,
+      optional: false,
+    }),
+  },
+
+  account: {
+    user: r.one.user({
+      from: r.account.userId,
+      to: r.user.id,
+      optional: false,
+    }),
+  },
+
+  member: {
+    organization: r.one.organization({
+      from: r.member.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    user: r.one.user({
+      from: r.member.userId,
+      to: r.user.id,
+      optional: false,
+    }),
+  },
+
+  invitation: {
+    organization: r.one.organization({
+      from: r.invitation.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    inviter: r.one.user({
+      from: r.invitation.inviterId,
+      to: r.user.id,
+      optional: false,
+    }),
   },
 
   organization: {
@@ -20,12 +65,17 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.communitySettings.communityId,
       optional: true,
     }),
+    members: r.many.member(),
+    invitations: r.many.invitation(),
     domains: r.many.domains(),
     spaceGroups: r.many.spaceGroups(),
     spaces: r.many.spaces(),
     courses: r.many.courses(),
     plans: r.many.plans(),
-    memberships: r.many.memberships(),
+    memberships: r.many.memberships({
+      from: r.organization.id,
+      to: r.memberships.communityId,
+    }),
     notifications: r.many.notifications(),
     media: r.many.media(),
     points: r.many.points(),
@@ -101,30 +151,24 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.spaces.id,
       optional: false,
     }),
+    // @ts-expect-error — Drizzle v2 type limitation: self-referencing comments table
     comments: r.many.comments(),
-    reactions: r.many.reactions(),
+    // reactions omitted: uses polymorphic pattern (reactableId + reactableType),
+    // no direct FK to posts — query reactions separately with a where clause
   },
 
+  // Drizzle v2 type limitation: self-referencing table (parent/replies) poisons
+  // the entire comments type. All r.comments.* accesses need @ts-ignore.
+  // prettier-ignore
   comments: {
-    post: r.one.posts({
-      from: r.comments.postId,
-      to: r.posts.id,
-      optional: false,
-    }),
-    author: r.one.user({
-      from: r.comments.authorId,
-      to: r.user.id,
-      optional: false,
-    }),
-    parent: r.one.comments({
-      from: r.comments.parentCommentId,
-      to: r.comments.id,
-      optional: true,
-      alias: "parentComment",
-    }),
-    replies: r.many.comments({
-      alias: "parentComment",
-    }),
+    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    post: r.one.posts({ from: r.comments.postId, to: r.posts.id, optional: false }),
+    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    author: r.one.user({ from: r.comments.authorId, to: r.user.id, optional: false }),
+    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    parent: r.one.comments({ from: r.comments.parentCommentId, to: r.comments.id, optional: true, alias: "parentComment" }),
+    // @ts-ignore — Drizzle v2 self-referencing table type issue
+    replies: r.many.comments({ alias: "parentComment" }),
   },
 
   reactions: {
@@ -275,6 +319,11 @@ export const relations = defineRelations(schema, (r) => ({
   },
 
   memberships: {
+    organization: r.one.organization({
+      from: r.memberships.communityId,
+      to: r.organization.id,
+      optional: false,
+    }),
     plan: r.one.plans({
       from: r.memberships.planId,
       to: r.plans.id,

@@ -53,6 +53,7 @@ export const posts = pgTable(
   ],
 );
 
+// @ts-ignore — Self-referencing FK (parentCommentId → comments.id) causes circular type inference
 export const comments = pgTable(
   "comments",
   {
@@ -61,6 +62,7 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
+    // @ts-ignore — Self-referencing FK: circular type inference is expected
     parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
       onDelete: "set null",
     }),
