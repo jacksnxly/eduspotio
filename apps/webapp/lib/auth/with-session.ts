@@ -29,6 +29,7 @@ export function withSession<TBody = undefined>(
 ) {
   return async (
     req: NextRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _ctx: { params: Promise<Record<string, string>> },
   ) => {
     try {

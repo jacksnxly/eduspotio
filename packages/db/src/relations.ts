@@ -151,15 +151,25 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.spaces.id,
       optional: false,
     }),
+    // prettier-ignore
+    // @ts-expect-error — Drizzle v2 self-referencing FK on comments poisons the table type
     comments: r.many.comments(),
     // reactions omitted: uses polymorphic pattern (reactableId + reactableType),
     // no direct FK to posts — query reactions separately with a where clause
   },
 
   comments: {
+    // prettier-ignore
+    // @ts-expect-error — Drizzle v2 self-referencing FK on comments poisons the table type
     post: r.one.posts({ from: r.comments.postId, to: r.posts.id, optional: false }),
+    // prettier-ignore
+    // @ts-expect-error — Drizzle v2 self-referencing FK on comments poisons the table type
     author: r.one.user({ from: r.comments.authorId, to: r.user.id, optional: false }),
+    // prettier-ignore
+    // @ts-expect-error — Drizzle v2 self-referencing FK on comments poisons the table type
     parent: r.one.comments({ from: r.comments.parentCommentId, to: r.comments.id, optional: true, alias: "parentComment" }),
+    // prettier-ignore
+    // @ts-expect-error — Drizzle v2 self-referencing FK on comments poisons the table type
     replies: r.many.comments({ alias: "parentComment" }),
   },
 
