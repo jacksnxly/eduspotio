@@ -1,23 +1,28 @@
 import { type TenantDatabase, tenantDB } from "@eduspot/db/helpers";
 import { headers } from "next/headers";
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
+import { z } from "zod";
 import { ApiError, handleApiError } from "../errors";
 import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
+import { parseRequestBody } from "./parse-body";
 import { hasPermission, roles, type PermissionRequest, type Role } from "./permissions";
+import { COMMUNITY_PLANS, type CommunityPlan } from "./plans";
 import type { AuthenticatedSession } from "./types";
 
-export type WithCommunityContext = {
+export type WithCommunityContext<TBody = undefined> = {
   req: NextRequest;
   params: Record<string, string>;
   searchParams: Record<string, string>;
   session: AuthenticatedSession;
+  body: TBody;
   community: {
     id: string;
     name: string;
     slug: string;
     logo: string | null;
     metadata: string | null;
+    plan: CommunityPlan;
     createdAt: Date;
   };
   membership: {
@@ -31,19 +36,27 @@ export type WithCommunityContext = {
   rateLimitHeaders: HeadersInit;
 };
 
-type WithCommunityHandler = (ctx: WithCommunityContext) => Promise<Response>;
+type WithCommunityHandler<TBody> = (
+  ctx: WithCommunityContext<TBody>,
+) => Promise<Response>;
 
-type WithCommunityOptions = {
+type WithCommunityOptions<TBody> = {
   requiredPermissions?: PermissionRequest;
+  requiredPlan?: CommunityPlan[];
+  bodySchema?: z.ZodType<TBody>;
 };
 
 function isRole(value: string): value is Role {
   return value in roles;
 }
 
-export function withCommunity(
-  handler: WithCommunityHandler,
-  opts?: WithCommunityOptions,
+function isCommunityPlan(value: unknown): value is CommunityPlan {
+  return typeof value === "string" && value in COMMUNITY_PLANS;
+}
+
+export function withCommunity<TBody = undefined>(
+  handler: WithCommunityHandler<TBody>,
+  opts?: WithCommunityOptions<TBody>,
 ) {
   return async (
     req: NextRequest,
@@ -55,6 +68,7 @@ export function withCommunity(
     };
 
     try {
+      const startTime = Date.now();
       const params = (await initialParams) || {};
       const searchParams = Object.fromEntries(
         new URL(req.url).searchParams.entries(),
@@ -75,17 +89,12 @@ export function withCommunity(
 
       errorContext.userId = session.user.id;
 
-      // 2. Rate limit by userId (after session check)
-      const { success: rateLimitSuccess, headers: rateLimitHeaders } =
-        await rateLimit(`user:${session.user.id}`);
-
-      if (!rateLimitSuccess) {
-        throw new ApiError({
-          code: "rate_limit_exceeded",
-          message: "Too many requests. Please try again later.",
-          headers: rateLimitHeaders,
-        });
-      }
+      // 2. Parse request body if schema provided
+      const body = (
+        opts?.bodySchema
+          ? await parseRequestBody(req, opts.bodySchema)
+          : undefined
+      ) as TBody;
 
       // 3. Resolve community from URL param (slug or ID)
       const communitySlug = params.communitySlug || params.slug;
@@ -132,7 +141,51 @@ export function withCommunity(
         });
       }
 
-      // 4. Check membership
+      // 4. Resolve community plan and enforce plan gate
+      const rawPlan = (org as Record<string, unknown>).plan;
+      let plan: CommunityPlan;
+      if (isCommunityPlan(rawPlan)) {
+        plan = rawPlan;
+      } else {
+        if (rawPlan !== undefined) {
+          console.warn(
+            JSON.stringify({
+              level: "warn",
+              type: "invalid_community_plan",
+              communityId: org.id,
+              communitySlug: org.slug,
+              rawPlan: String(rawPlan),
+              fallback: "free",
+            }),
+          );
+        }
+        plan = "free";
+      }
+
+      if (opts?.requiredPlan && !opts.requiredPlan.includes(plan)) {
+        throw new ApiError({
+          code: "forbidden",
+          message: "Your community plan does not support this feature.",
+        });
+      }
+
+      // 5. Rate limit by userId (global across all communities) using plan-based limits
+      const planConfig = COMMUNITY_PLANS[plan];
+      const { success: rateLimitSuccess, headers: rateLimitHeaders } =
+        await rateLimit(`user:${session.user.id}`, {
+          limit: planConfig.rateLimit,
+          window: planConfig.rateLimitWindow,
+        });
+
+      if (!rateLimitSuccess) {
+        throw new ApiError({
+          code: "rate_limit_exceeded",
+          message: "Too many requests. Please try again later.",
+          headers: rateLimitHeaders,
+        });
+      }
+
+      // 6. Check membership
       const membership = org.members.find((m) => m.userId === session.user.id);
 
       if (!membership) {
@@ -142,7 +195,7 @@ export function withCommunity(
         });
       }
 
-      // 5. Check required permissions via role.authorize()
+      // 7. Check required permissions via role.authorize()
       if (!isRole(membership.role)) {
         console.error(
           `Invalid role "${membership.role}" for userId=${session.user.id} orgId=${org.id}`,
@@ -162,19 +215,21 @@ export function withCommunity(
         });
       }
 
-      // 6. Execute within RLS tenant context
+      // 8. Execute within RLS tenant context
       const response = await tenantDB(org.id, async (tx) => {
         return handler({
           req,
           params,
           searchParams,
           session,
+          body,
           community: {
             id: org.id,
             name: org.name,
             slug: org.slug,
             logo: org.logo ?? null,
             metadata: org.metadata ?? null,
+            plan,
             createdAt: org.createdAt,
           },
           membership: {
@@ -194,11 +249,34 @@ export function withCommunity(
       for (const [key, value] of Object.entries(rateLimitHeaders)) {
         mergedHeaders.set(key, String(value));
       }
-      return new Response(response.body, {
+
+      const finalResponse = new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
         headers: mergedHeaders,
       });
+
+      // Log after response is sent to avoid adding latency to the client
+      after(() => {
+        try {
+          console.info(
+            JSON.stringify({
+              level: "info",
+              type: "request",
+              method: req.method,
+              path: new URL(req.url).pathname,
+              userId: session.user.id,
+              communitySlug,
+              status: finalResponse.status,
+              durationMs: Date.now() - startTime,
+            }),
+          );
+        } catch (err) {
+          console.error("[after] Request logging failed:", err);
+        }
+      });
+
+      return finalResponse;
     } catch (error) {
       return handleApiError(error, errorContext);
     }

@@ -1,24 +1,38 @@
 import { headers } from "next/headers";
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
+import { z } from "zod";
 import { ApiError, handleApiError } from "../errors";
 import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
+import { parseRequestBody } from "./parse-body";
 import type { AuthenticatedSession } from "./types";
 
-export type WithSessionContext = {
+export type WithSessionContext<TBody = undefined> = {
   req: NextRequest;
   session: AuthenticatedSession;
+  body: TBody;
   rateLimitHeaders: HeadersInit;
 };
 
-type WithSessionHandler = (ctx: WithSessionContext) => Promise<Response>;
+type WithSessionHandler<TBody> = (
+  ctx: WithSessionContext<TBody>,
+) => Promise<Response>;
 
-export function withSession(handler: WithSessionHandler) {
+type WithSessionOptions<TBody> = {
+  bodySchema?: z.ZodType<TBody>;
+};
+
+export function withSession<TBody = undefined>(
+  handler: WithSessionHandler<TBody>,
+  opts?: WithSessionOptions<TBody>,
+) {
   return async (
     req: NextRequest,
     _ctx: { params: Promise<Record<string, string>> },
   ) => {
     try {
+      const startTime = Date.now();
+
       // Rate limit by IP before session check (cheaper first)
       const ip =
         req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -45,18 +59,46 @@ export function withSession(handler: WithSessionHandler) {
         });
       }
 
-      const response = await handler({ req, session, rateLimitHeaders });
+      const body = (
+        opts?.bodySchema
+          ? await parseRequestBody(req, opts.bodySchema)
+          : undefined
+      ) as TBody;
+
+      const response = await handler({ req, session, body, rateLimitHeaders });
 
       // Merge rate limit headers into the handler's response
       const mergedHeaders = new Headers(response.headers);
       for (const [key, value] of Object.entries(rateLimitHeaders)) {
         mergedHeaders.set(key, String(value));
       }
-      return new Response(response.body, {
+
+      const finalResponse = new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
         headers: mergedHeaders,
       });
+
+      // Log after response is sent to avoid adding latency to the client
+      after(() => {
+        try {
+          console.info(
+            JSON.stringify({
+              level: "info",
+              type: "request",
+              method: req.method,
+              path: new URL(req.url).pathname,
+              userId: session.user.id,
+              status: finalResponse.status,
+              durationMs: Date.now() - startTime,
+            }),
+          );
+        } catch (err) {
+          console.error("[after] Request logging failed:", err);
+        }
+      });
+
+      return finalResponse;
     } catch (error) {
       return handleApiError(error, {
         method: req.method,
