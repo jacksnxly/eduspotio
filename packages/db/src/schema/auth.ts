@@ -1,5 +1,6 @@
 import {
   boolean,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -14,6 +15,12 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  invalidLoginAttempts: integer("invalid_login_attempts").notNull().default(0),
+  // Fields managed by BetterAuth admin() plugin
+  role: text("role").notNull().default("user").$type<"user" | "admin">(),
+  banned: boolean("banned").notNull().default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
 });
 
 export const session = pgTable("session", {
@@ -61,12 +68,15 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const PLAN_VALUES = ["free", "pro", "business", "enterprise"] as const;
+
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
   metadata: text("metadata"),
+  plan: text("plan").notNull().default("free").$type<(typeof PLAN_VALUES)[number]>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
