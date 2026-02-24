@@ -1,9 +1,11 @@
 export {
   account,
+  apikey,
   invitation,
   member,
   organization,
   PLAN_VALUES,
+  rateLimitTable,
   session,
   user,
   verification,
