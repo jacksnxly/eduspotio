@@ -1,4 +1,6 @@
+import { db } from "@eduspot/db";
 import { type TenantDatabase, tenantDB } from "@eduspot/db/helpers";
+import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { after, NextRequest } from "next/server";
 import { z } from "zod";
@@ -7,8 +9,9 @@ import { ApiError, handleApiError } from "../errors";
 import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
 import { parseRequestBody } from "./parse-body";
-import { hasPermission, roles, type PermissionRequest, type Role } from "./permissions";
+import { getPermissionsByRole, hasPermission, roles, type PermissionAction, type PermissionRequest, type Role } from "./permissions";
 import { COMMUNITY_PLANS, type CommunityPlan } from "./plans";
+import { mapScopesToPermissions, parseScopesFromMetadata } from "./scopes";
 import type { AuthenticatedSession } from "./types";
 
 export type WithCommunityContext<TBody = undefined> = {
@@ -34,6 +37,8 @@ export type WithCommunityContext<TBody = undefined> = {
     createdAt: Date;
   };
   db: TenantDatabase;
+  effectivePermissions: PermissionAction[];
+  isApiKeyRequest: boolean;
   rateLimitHeaders: HeadersInit;
 };
 
@@ -44,6 +49,7 @@ type WithCommunityHandler<TBody> = (
 type WithCommunityOptions<TBody> = {
   requiredPermissions?: PermissionRequest;
   requiredPlan?: CommunityPlan[];
+  requiredScopes?: PermissionAction[];
   bodySchema?: z.ZodType<TBody>;
 };
 
@@ -70,6 +76,7 @@ export function withCommunity<TBody = undefined>(
 
     try {
       const startTime = Date.now();
+      const clonedReq = req.clone() as NextRequest;
       const params = (await initialParams) || {};
       const searchParams = Object.fromEntries(
         new URL(req.url).searchParams.entries(),
@@ -215,10 +222,43 @@ export function withCommunity<TBody = undefined>(
         });
       }
 
+      // 7b. If API key request, intersect role permissions with key scopes
+      const apiKeyHeader = req.headers.get("x-api-key");
+      let effectivePermissions = getPermissionsByRole(userRole);
+      const isApiKeyRequest = !!apiKeyHeader;
+
+      if (apiKeyHeader) {
+        // BetterAuth sets session.session.id = apiKey.id when enableSessionForAPIKeys is true
+        const keyResult = await db.execute(
+          sql`SELECT metadata FROM "apikey" WHERE id = ${session.session.id}`
+        );
+        const keyMetadata = keyResult?.rows?.[0]?.metadata;
+        const scopes = parseScopesFromMetadata(keyMetadata);
+        if (scopes) {
+          const scopePermissions = mapScopesToPermissions(scopes);
+          effectivePermissions = effectivePermissions.filter((p) =>
+            scopePermissions.includes(p)
+          );
+        }
+      }
+
+      // Check required scopes against effective (intersected) permissions
+      if (opts?.requiredScopes) {
+        const missing = opts.requiredScopes.filter(
+          (p) => !effectivePermissions.includes(p)
+        );
+        if (missing.length > 0) {
+          throw new ApiError({
+            code: "forbidden",
+            message: `API key missing required scopes: ${missing.join(", ")}`,
+          });
+        }
+      }
+
       // 8. Execute within RLS tenant context
       const response = await tenantDB(org.id, async (tx) => {
         return handler({
-          req,
+          req: clonedReq,
           params,
           searchParams,
           session,
@@ -240,6 +280,8 @@ export function withCommunity<TBody = undefined>(
             createdAt: membership.createdAt,
           },
           db: tx,
+          effectivePermissions,
+          isApiKeyRequest,
           rateLimitHeaders,
         });
       });

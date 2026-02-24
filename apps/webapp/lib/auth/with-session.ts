@@ -33,6 +33,7 @@ export function withSession<TBody = undefined>(
   ) => {
     try {
       const startTime = Date.now();
+      const clonedReq = req.clone() as NextRequest;
 
       // Rate limit by IP before session check (cheaper first)
       const ip =
@@ -66,7 +67,7 @@ export function withSession<TBody = undefined>(
           : undefined
       ) as TBody;
 
-      const response = await handler({ req, session, body, rateLimitHeaders });
+      const response = await handler({ req: clonedReq, session, body, rateLimitHeaders });
 
       // Merge rate limit headers into the handler's response
       const mergedHeaders = new Headers(response.headers);
