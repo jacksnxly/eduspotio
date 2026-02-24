@@ -1,10 +1,10 @@
 import { Redis } from "@upstash/redis";
+import { env } from "./env";
+
+let _redis: Redis | null | undefined;
 
 function createRedisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
+  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
     if (process.env.NODE_ENV === "production") {
       console.warn(
         "[redis] UPSTASH_REDIS_REST_URL/TOKEN not set. Rate limiting on custom routes is disabled.",
@@ -13,7 +13,16 @@ function createRedisClient(): Redis | null {
     return null;
   }
 
-  return new Redis({ url, token });
+  return new Redis({
+    url: env.UPSTASH_REDIS_REST_URL,
+    token: env.UPSTASH_REDIS_REST_TOKEN,
+  });
 }
 
-export const redis = createRedisClient();
+/** Lazily initialized to avoid accessing env at module-load time (breaks `next build`). */
+export function getRedis(): Redis | null {
+  if (_redis === undefined) {
+    _redis = createRedisClient();
+  }
+  return _redis;
+}

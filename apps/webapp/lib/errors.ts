@@ -36,25 +36,35 @@ export class ApiError extends Error {
 
 export function handleApiError(
   error: unknown,
-  context?: { method?: string; path?: string; userId?: string },
+  context?: Record<string, string | undefined>,
 ): Response {
   if (error instanceof ApiError) {
-    if (error.code === "unauthorized" || error.code === "forbidden" || error.code === "rate_limit_exceeded") {
-      console.warn(
-        JSON.stringify({
-          level: "warn",
-          code: error.code,
-          message: error.message,
-          ...(context && context),
-        }),
-      );
-    }
-    return Response.json(error.toJSON(), { status: error.status, headers: error.headers });
+    const logLevel =
+      error.code === "unauthorized" ||
+      error.code === "forbidden" ||
+      error.code === "rate_limit_exceeded"
+        ? "warn"
+        : "info";
+    const logFn = logLevel === "warn" ? console.warn : console.info;
+    logFn(
+      JSON.stringify({
+        level: logLevel,
+        code: error.code,
+        status: error.status,
+        message: error.message,
+        ...context,
+      }),
+    );
+    return Response.json(error.toJSON(), {
+      status: error.status,
+      headers: error.headers,
+    });
   }
 
   const errorId = crypto.randomUUID();
   console.error(
     JSON.stringify({
+      level: "error",
       errorId,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,

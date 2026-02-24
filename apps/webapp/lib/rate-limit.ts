@@ -1,5 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { redis } from "./redis";
+import { getRedis } from "./redis";
 
 type RateLimitResult = {
   success: boolean;
@@ -13,6 +13,7 @@ export async function rateLimit(
     window?: `${number} s` | `${number} m` | `${number} h`;
   },
 ): Promise<RateLimitResult> {
+  const redis = getRedis();
   if (!redis) {
     return { success: true, headers: {} };
   }
@@ -24,6 +25,7 @@ export async function rateLimit(
         opts?.limit ?? 60,
         opts?.window ?? "1 m",
       ),
+      timeout: 1000,
     });
 
     const { success, limit, remaining, reset } =

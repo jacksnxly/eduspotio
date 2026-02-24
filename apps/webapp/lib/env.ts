@@ -49,10 +49,13 @@ const result = envSchema.safeParse(process.env);
 function parseEnv(): Env {
   if (isBuildPhase) {
     // WARNING: During `next build`, route handler modules are loaded (top-level
-    // code runs) even though no HTTP requests are served. Skip throwing so the
-    // build doesn't crash when env vars are absent. Real validation happens at
-    // runtime startup. Do NOT add module-level code that assumes validated env
-    // values outside of function bodies.
+    // code runs) even though no HTTP requests are served. Env vars may be
+    // undefined but code is never actually invoked for requests.
+    // A Proxy trap here would be ideal but auth/index.ts requires module-level
+    // env access for BetterAuth config (cannot be lazified due to type inference
+    // via `typeof auth.$Infer.Session`).
+    // Do NOT add module-level code that assumes validated env values outside of
+    // function bodies — those paths will receive undefined at build time.
     return process.env as unknown as Env;
   }
 
