@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@eduspot/tsconfig": "workspace:*",
+    "@types/ws": "^8.18.1",
     "drizzle-kit": "beta",
     "typescript": "^5"
   }

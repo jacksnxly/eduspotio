@@ -53,6 +53,7 @@ export const posts = pgTable(
   ],
 );
 
+// @ts-expect-error — Drizzle v2 self-referencing FK type issue
 export const comments = pgTable(
   "comments",
   {
@@ -61,6 +62,7 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
+    // @ts-expect-error — Drizzle v2 self-referencing FK type issue
     parentCommentId: uuid("parent_comment_id").references(() => comments.id, {
       onDelete: "set null",
     }),
