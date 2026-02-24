@@ -12,6 +12,7 @@ import { parseRequestBody } from "./parse-body";
 import { getPermissionsByRole, hasPermission, roles, type PermissionAction, type PermissionRequest, type Role } from "./permissions";
 import { COMMUNITY_PLANS, type CommunityPlan } from "./plans";
 import { mapScopesToPermissions, parseScopesFromMetadata } from "./scopes";
+import { apiKeyCache } from "./token-cache";
 import type { AuthenticatedSession } from "./types";
 
 export type WithCommunityContext<TBody = undefined> = {
@@ -125,21 +126,17 @@ export function withCommunity<TBody = undefined>(
           query: { organizationSlug: communitySlug },
         });
       } catch (error) {
-        // BetterAuth throws (not returns null) for non-existent or non-member slugs.
-        // Only treat known "not found" errors as 404; propagate everything else.
-        if (
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-           error.message.includes("Organization not found"))
-        ) {
-          org = null;
-        } else {
-          logger.error("Unexpected error from getFullOrganization", {
-            communitySlug,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          throw error;
-        }
+        // BetterAuth getFullOrganization is session-scoped: it throws for both
+        // non-existent slugs and non-member access. Treat any error as "org not
+        // accessible" → 404, so we never leak org existence to outsiders.
+        // Known error shapes:
+        //   - APIError { status: "UNAUTHORIZED", statusCode: 401, message: "" } (non-member)
+        //   - Error with "not found" / "Organization not found" in message (missing slug)
+        logger.warn("getFullOrganization failed, treating as not found", {
+          communitySlug,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        org = null;
       }
 
       if (!org) {
@@ -229,10 +226,23 @@ export function withCommunity<TBody = undefined>(
 
       if (apiKeyHeader) {
         // BetterAuth sets session.session.id = apiKey.id when enableSessionForAPIKeys is true
-        const keyResult = await db.execute(
-          sql`SELECT metadata FROM "apikey" WHERE id = ${session.session.id}`
-        );
-        const keyMetadata = keyResult?.rows?.[0]?.metadata;
+        const keyId = session.session.id;
+        let keyMetadata: unknown;
+
+        const cached = await apiKeyCache.get(keyId);
+        if (cached !== null) {
+          // Cache HIT
+          keyMetadata = cached.metadata;
+        } else {
+          // Cache MISS — fall back to DB
+          const keyResult = await db.execute(
+            sql`SELECT metadata FROM "apikey" WHERE id = ${keyId}`
+          );
+          keyMetadata = keyResult?.rows?.[0]?.metadata;
+          // Populate cache asynchronously (fire-and-forget)
+          after(() => apiKeyCache.set(keyId, keyMetadata));
+        }
+
         const scopes = parseScopesFromMetadata(keyMetadata);
         if (scopes) {
           const scopePermissions = mapScopesToPermissions(scopes);

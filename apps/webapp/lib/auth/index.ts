@@ -10,6 +10,7 @@ import { Resend } from "resend";
 import { logger } from "@/lib/axiom";
 import { env } from "../env";
 import { ac, roles } from "./permissions";
+import { apiKeyCache } from "./token-cache";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -73,9 +74,11 @@ export const auth = betterAuth({
           errorMessage: sendError.message,
           userEmail: user.email,
         });
-        throw new Error(
-          `Failed to send password reset email: ${sendError.message}`,
-        );
+        if (process.env.NODE_ENV === "production") {
+          throw new Error(
+            `Failed to send password reset email: ${sendError.message}`,
+          );
+        }
       }
     },
   },
@@ -116,9 +119,13 @@ export const auth = betterAuth({
           errorMessage: sendError.message,
           userEmail: user.email,
         });
-        throw new Error(
-          `Failed to send verification email: ${sendError.message}`,
-        );
+        if (process.env.NODE_ENV === "production") {
+          throw new Error(
+            `Failed to send verification email: ${sendError.message}`,
+          );
+        }
+        // In dev, log but don't throw — sign-up should succeed even if email
+        // delivery fails (BetterAuth persists user before this callback).
       }
     },
   },
@@ -265,6 +272,22 @@ export const auth = betterAuth({
       }
     }),
   },
+  // BetterAuth databaseHooks types don't include plugin models (apikey),
+  // but the hooks are supported at runtime — assert to satisfy the type checker.
+  databaseHooks: {
+    apikey: {
+      update: {
+        after: async (apiKey: { id: string }) => {
+          await apiKeyCache.delete(apiKey.id);
+        },
+      },
+      delete: {
+        after: async (apiKey: { id: string }) => {
+          await apiKeyCache.delete(apiKey.id);
+        },
+      },
+    },
+  } as Record<string, unknown>,
   plugins: [
     organization({
       ac,

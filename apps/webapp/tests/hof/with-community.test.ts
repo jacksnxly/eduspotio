@@ -116,6 +116,7 @@ describe.sequential("withCommunity HOF", () => {
       error: { code: string; message: string };
     }>({
       path: `/test/community/${orgSlug}`,
+      body: { title: "Test Post", description: "test" },
     });
 
     expect(status).toBe(403);
@@ -129,6 +130,7 @@ describe.sequential("withCommunity HOF", () => {
       userId: string;
     }>({
       path: `/test/community/${orgSlug}`,
+      body: { title: "Test Post", description: "test" },
     });
 
     expect(status).toBe(200);
