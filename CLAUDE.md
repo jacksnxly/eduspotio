@@ -108,7 +108,7 @@ Use Conventional Commits:
 
 - **Framework:** Next.js 16 (App Router) + React 19
 - **Database:** PostgreSQL (Neon serverless) + Drizzle ORM
-- **Auth:** BetterAuth (planned)
+- **Auth:** BetterAuth
 - **Styling:** Tailwind CSS 4
 - **Testing:** Vitest
 - **CI/CD:** GitHub Actions + Dependabot
@@ -130,7 +130,7 @@ Use `~/Projects/dub/` (dub.co) as a mature SaaS reference when designing pattern
 - When spawning parallel agent teams for code changes, assign each agent a distinct set of files/directories with zero overlap. Run `pnpm install` once after all agents complete, not per-agent. <!-- learned 2026-02-23 -->
 - In `drizzle.config.ts`, set `schema: "./src/schema/index.ts"` (barrel file only), NOT `"./src/schema"` (directory). Directory scan reads all .ts files including the barrel re-export, causing drizzle-kit to see every table/enum twice. <!-- learned 2026-02-23 -->
 - The `pgRole("app_user").existing()` declaration means the role must already exist on the database. Before `db:push` on a fresh database, run: `CREATE ROLE app_user NOLOGIN;` <!-- learned 2026-02-23 -->
-- Drizzle v2 `defineRelations()`: self-referencing FKs (e.g., `comments.parentCommentId → comments.id`) cause TypeScript circular inference errors that poison the entire table's type. Use `@ts-ignore` + `prettier-ignore` to suppress. Known Drizzle ORM beta limitation. <!-- learned 2026-02-23 -->
+- Drizzle v2 `defineRelations()`: self-referencing FKs (e.g., `comments.parentCommentId → comments.id`) cause TypeScript circular inference errors that poison the entire table's type. Use `@ts-expect-error` + `prettier-ignore` to suppress. Known Drizzle ORM beta limitation. <!-- learned 2026-02-23 -->
 - BetterAuth `createAccessControl()` does NOT have `hasPermission()`. Each role from `ac.newRole()` has `authorize(request)` → `{ success, error? }`. Check permissions: `roles[roleName].authorize({ resource: ["action"] })`. <!-- learned 2026-02-23 -->
 - Env validation in `lib/env.ts` must skip the throw during `next build` — route handlers trigger module evaluation at build time. Guard with `process.env.NEXT_PHASE === "phase-production-build"`. <!-- learned 2026-02-23 -->
 - Drizzle v2 composite unique constraints use standalone `unique()` from `drizzle-orm/pg-core`, NOT `t.unique()`. Syntax: `(t) => [unique("constraint_name").on(t.col1, t.col2)]`. <!-- learned 2026-02-23 -->

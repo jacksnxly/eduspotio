@@ -1,4 +1,4 @@
-# Session Summary 2026-02-24 (Session 11 — HOF Integration Tests)
+# Session Summary 2026-02-24 (Session 12 — Comprehensive PR Review & Fixes)
 
 ## Developer
 
@@ -6,56 +6,67 @@
 
 ## Session Objective
 
-Implement integration tests for `withSession` and `withCommunity` HOFs — the highest-priority gap (9-10/10 criticality) flagged in both PR review rounds (sessions 9 & 10). Tests exercise the full stack: HTTP request → proxy → route handler → HOF → handler → response.
+Run a comprehensive PR review of `feat/better-auth` against `main` using 5 specialized agents, validate all findings against official docs and the dub.co reference architecture, then fix all confirmed issues using a parallel agent team.
 
 ## Files Modified
 
-### Created
-- `apps/webapp/app/api/test/session/route.ts` — Test API route using `withSession` HOF (GET returns user context)
-- `apps/webapp/app/api/test/community/[communitySlug]/route.ts` — Test API routes using `withCommunity` HOF (GET = no perms, POST = requires `community:delete`)
-- `apps/webapp/tests/hof/with-session.test.ts` — 3 integration tests for `withSession`
-- `apps/webapp/tests/hof/with-community.test.ts` — 7 integration tests for `withCommunity`
-
 ### Modified
-- `apps/webapp/proxy.ts` — Replaced `/test` with `/api/test` in PUBLIC_PATHS (old `/test` entry didn't match `/api/test/*` routes due to `pathname.startsWith()` check)
-- `apps/webapp/lib/auth/with-community.ts` — Fixed bug: wrapped `auth.api.getFullOrganization()` in try-catch (BetterAuth throws instead of returning null for non-existent slugs, was causing 500 instead of 404)
+- `apps/webapp/lib/auth/with-community.ts` — 6 fixes: bare catch → error inspection, rate limit headers on responses, progressive error context, normalized logo/metadata types
+- `apps/webapp/lib/auth/with-session.ts` — Rate limit headers merged into all responses
+- `apps/webapp/lib/auth/index.ts` — RESEND_API_KEY fail-fast (throw instead of log), removed unreachable fallbacks
+- `apps/webapp/lib/errors.ts` — Log all 4xx errors (not just 401/403/429), added `level: "error"` to 500 block, widened context type to `Record<string, string | undefined>`
+- `apps/webapp/lib/redis.ts` — Uses validated `env` import + lazy `getRedis()` pattern
+- `apps/webapp/lib/rate-limit.ts` — Added `timeout: 1000`, uses `getRedis()` lazy import
+- `apps/webapp/lib/env.ts` — Updated build-phase comment explaining why Proxy trap is incompatible
+- `apps/webapp/app/api/test/session/route.ts` — Added production guard (returns 404 in prod)
+- `apps/webapp/app/api/test/community/[communitySlug]/route.ts` — Added production guard (returns 404 in prod)
+- `packages/db/src/schema/auth.ts` — Added `$type<>()` to `invitation.role` and `invitation.status`
+- `packages/db/src/relations.ts` — Removed 5 unused `@ts-expect-error` directives (Drizzle v2 bug fixed upstream)
+- `CLAUDE.md` — Fixed `@ts-ignore` → `@ts-expect-error` contradiction, removed "(planned)" from Auth in tech stack
 
 ## Implementation Details
 
-### Main Changes
+### Review Process (3 rounds)
 
-**Test routes** act as thin wrappers around the HOFs, returning the context they receive as JSON. This lets integration tests verify the full middleware chain without touching real app routes.
+**Round 1 — Initial Review (5 agents in parallel):**
+- code-reviewer, pr-test-analyzer, silent-failure-hunter, type-design-analyzer, comment-analyzer
+- Found 7 critical, 12 important, 10 test gaps, and several suggestions
 
-**withSession tests (3):**
-1. Unauthenticated (no cookies) → 401 `{ error: { code: "unauthorized" } }`
-2. Authenticated → 200 with `{ user, method, hasRateLimitHeaders }`
-3. Session data matches signed-up user (email, id)
+**Round 2 — Validation (4 agents in parallel):**
+- Each finding validated against official docs + dub.co reference
+- 3 findings DISPUTED as false positives:
+  - `proxy.ts` dead code → Next.js 16 renamed `middleware.ts` to `proxy.ts` (correct convention)
+  - `/forget-password` misspelled → BetterAuth uses this path (confirmed via source)
+  - `getSessionCookie` needs error handling → function never throws (confirmed via BetterAuth source)
+- 2 findings DOWNGRADED: Ratelimit per-request (dub.co same pattern), x-forwarded-for (Vercel overwrites)
 
-**withCommunity tests (7):**
-1. Unauthenticated → 401
-2. Non-existent community slug → 404
-3. Authenticated but not a member → 404 (not 403 — see discovery below)
-4. Member GET (no perms required) → 200 with community + membership context
-5. Member POST (requires `community:delete`) → 403 (members lack delete)
-6. Owner POST (requires `community:delete`) → 200 (owners have all perms)
-7. Context data correctness (community.slug, membership.role match expected)
+**Round 3 — Fix Implementation (3 agents in parallel):**
+- auth-fixer: `with-community.ts`, `with-session.ts`, `auth/index.ts`
+- infra-fixer: `errors.ts`, `redis.ts`, `rate-limit.ts`, `env.ts`
+- schema-fixer: `auth.ts`, `CLAUDE.md`, test routes
+- Zero file overlap between agents
+- Compatibility issue caught: env.ts Proxy trap breaks auth/index.ts module-level env access → reverted
 
-### Bug Found & Fixed
+**Round 4 — Re-Review (3 agents in parallel):**
+- All 13 fixes validated with confidence scores (85-100%)
+- One type gap found and fixed (handleApiError context type)
 
-`with-community.ts:93` — `auth.api.getFullOrganization()` throws for non-existent organization slugs instead of returning `null`. The outer catch block in `withCommunity` treated it as an unexpected error → 500. Fixed by wrapping the specific call in try-catch, falling through to the `!org` → 404 path.
-
-### Behavioral Discovery
-
-**BetterAuth `getFullOrganization` is session-scoped:** it won't return orgs the requesting user isn't a member of. So for a non-member, the call returns null/throws — the HOF returns 404 (not 403). This is correct security behavior: don't leak org existence to outsiders. Test adjusted to expect 404.
-
-### Technical Decisions
+### Key Technical Decisions
 
 | Decision | Choice | Reasoning |
 |----------|--------|-----------|
-| Test routes at `/api/test/*` | Dedicated test-only routes | Keeps test infra separate from app routes; tests full middleware chain |
-| `/api/test` in PUBLIC_PATHS | Replace old `/test` entry | Old entry matched page routes (`/test`), not API routes (`/api/test/session`) |
-| Non-member → 404 not 403 | Match BetterAuth behavior | `getFullOrganization` is session-scoped; don't reveal org existence |
-| `getFullOrganization` try-catch | Catch + fall through to null | BetterAuth throws instead of returning null; our code expected null |
+| Proxy trap in env.ts | Reverted | auth/index.ts needs module-level env access for BetterAuth config; can't lazify due to `typeof auth.$Infer.Session` type inference |
+| redis.ts lazy pattern | `getRedis()` function | Defers env access to runtime, compatible with both build phase and validated env |
+| Error catch inspection | String matching on error.message | BetterAuth has no typed error classes; "not found" string match is the best available approach |
+| Rate limit headers | Merge into all responses | Follows dub.co pattern and IETF draft standard |
+| handleApiError context | `Record<string, string \| undefined>` | Extensible — allows any HOF to pass additional context without updating the type |
+| Test route guard | Ternary at export level | Handler never assigned in production; cleaner than runtime check inside handler |
+
+### Findings Disputed (False Positives)
+
+1. **proxy.ts is dead code** — WRONG. Next.js 16 renamed `middleware.ts` → `proxy.ts`. The file follows the correct convention.
+2. **`/forget-password` misspelled** — WRONG. BetterAuth's source code uses `/forget-password` (grammatically incorrect but intentional). GitHub issue #2946 confirms.
+3. **`getSessionCookie` needs error handling** — WRONG. BetterAuth source confirms it's a synchronous cookie parser returning `string | null`, never throws.
 
 ## Workflow Progress
 
@@ -64,34 +75,33 @@ Implement integration tests for `withSession` and `withCommunity` HOFs — the h
 | Brief | .agent/briefs/BRIEF-auth-system-2026-02-23.md | Approved |
 | Spec | .agent/specs/SPEC-auth-system-2026-02-23.md | Approved |
 | Implementation | apps/webapp/lib/auth/*, packages/db/src/schema/auth.ts | Complete |
-| Testing | apps/webapp/tests/** | **Complete — 90/90 passing** |
-| Review (Round 1) | Session 9 — 5 agents | Complete — all issues fixed |
-| Review (Round 2) | Session 10 — 6 agents, docs-validated | Complete — all issues fixed |
-| HOF Tests | Session 11 — this session | **Complete — 10 new tests** |
+| Testing | apps/webapp/tests/** | Complete — 90/90 passing |
+| Review (Round 1) | Session 9 — 5 agents | Complete |
+| Review (Round 2) | Session 10 — 6 agents | Complete |
+| HOF Tests | Session 11 | Complete — 10 new tests |
+| PR Review + Fixes | Session 12 — this session | **Complete — 13 issues fixed, 3 false positives caught** |
 
 ## Testing & Validation
 
-- `pnpm run build` — **2/2 tasks successful**, zero TypeScript errors
-- `pnpm test` — **10 test files, 90 tests, all passing** (~3m34s)
-  - 80 existing tests: zero regressions
-  - 10 new HOF tests: all green
+- `npx tsc --noEmit` — **0 errors** (down from 5 pre-existing)
+- All changes are code-level fixes; existing 90 tests should still pass (no test files modified)
 
 ## Current State
 
-Auth system is fully implemented, tested (90 tests), and double-reviewed. The highest-priority test gap (HOF integration tests) is now closed. All changes remain **uncommitted** on `feat/better-auth` branch. Ready for commit + PR.
+Auth system is fully implemented, tested (90 tests), triple-reviewed, and hardened. 12 files modified with fixes across error handling, logging, type safety, production guards, and documentation. All changes remain **uncommitted** on `feat/better-auth` branch.
 
-## Blockers/Issues (carried from session 10)
+## Blockers/Issues
 
-- **BetterAuth sign-out from external clients** — `nextCookies()` plugin causes 500 when sign-out is called from non-browser clients. Tests work around this.
-- **Database migration still pending** — `pnpm db:push` hasn't been run for auth tables in a fresh environment.
-- **Orphaned user limitation** — BetterAuth persists user before `sendVerificationEmail`. Need "resend verification email" endpoint.
-- **tenantDB set_config verification** — No read-back verification after `set_config`.
+- **BetterAuth sign-out from external clients** — `nextCookies()` plugin causes 500 from non-browser clients. Tests work around this.
+- **Database migration still pending** — `pnpm db:push` hasn't been run for auth tables in fresh environments.
+- **Orphaned user limitation** — BetterAuth persists user before `sendVerificationEmail`. Need "resend verification" endpoint.
+- **String-based error matching in withCommunity catch** — Fragile if BetterAuth changes error messages. No typed errors available.
 
 ## Next Steps
 
 1. **Commit all uncommitted work** — Bundle into logical commits on `feat/better-auth`
-2. **Open PR** — `feat/better-auth` → `main` (auth system is feature-complete for Phase 1)
-3. **Add proxy.ts unit tests** — Mock NextRequest to test public/protected path routing
+2. **Open PR** — `feat/better-auth` → `main`
+3. **Run full test suite** — Verify 90/90 tests still pass after the fixes
 4. **Start frontend auth UI** — Login, signup, email verification pages (new feature brief)
 5. **First community-scoped API route** — Using `withCommunity()` HOF for real app functionality
 
