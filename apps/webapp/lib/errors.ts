@@ -1,3 +1,7 @@
+import { z } from "zod";
+
+const DOC_ERROR_URL = "https://docs.eduspot.io/api/errors";
+
 export const ERROR_CODES = {
   bad_request: 400,
   unauthorized: 401,
@@ -14,6 +18,7 @@ export type ErrorCode = keyof typeof ERROR_CODES;
 export class ApiError extends Error {
   public readonly code: ErrorCode;
   public readonly status: number;
+  public readonly docUrl: string;
   public readonly headers?: HeadersInit;
 
   constructor({ code, message, headers }: { code: ErrorCode; message: string; headers?: HeadersInit }) {
@@ -21,6 +26,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.code = code;
     this.status = ERROR_CODES[code];
+    this.docUrl = `${DOC_ERROR_URL}#${code.replace(/_/g, "-")}`;
     this.headers = headers;
   }
 
@@ -29,6 +35,7 @@ export class ApiError extends Error {
       error: {
         code: this.code,
         message: this.message,
+        doc_url: this.docUrl,
       },
     };
   }
@@ -59,6 +66,25 @@ export function handleApiError(
       status: error.status,
       headers: error.headers,
     });
+  }
+
+  if (error instanceof z.ZodError) {
+    const message = error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const zodApiError = new ApiError({
+      code: "unprocessable_entity",
+      message,
+    });
+    // Log at info level (validation errors are client mistakes, not security events warranting warn)
+    console.info(
+      JSON.stringify({
+        level: "info",
+        code: zodApiError.code,
+        status: zodApiError.status,
+        message: zodApiError.message,
+        ...context,
+      }),
+    );
+    return Response.json(zodApiError.toJSON(), { status: zodApiError.status });
   }
 
   const errorId = crypto.randomUUID();
