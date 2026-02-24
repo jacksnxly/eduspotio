@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "@/lib/axiom";
 import { ApiError } from "../errors";
 
 export async function parseRequestBody<T extends z.ZodType>(
@@ -9,14 +10,11 @@ export async function parseRequestBody<T extends z.ZodType>(
   try {
     raw = await req.json();
   } catch (err) {
-    console.info(
-      JSON.stringify({
-        level: "info",
-        type: "json_parse_failed",
-        error: err instanceof Error ? err.message : String(err),
-        contentType: req.headers.get("content-type"),
-      }),
-    );
+    logger.info("JSON parse failed", {
+      type: "json_parse_failed",
+      error: err instanceof Error ? err.message : String(err),
+      contentType: req.headers.get("content-type"),
+    });
     throw new ApiError({
       code: "bad_request",
       message: "Request body must be valid JSON.",

@@ -7,6 +7,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { admin, apiKey, bearer, organization } from "better-auth/plugins";
 import { Resend } from "resend";
+import { logger } from "@/lib/axiom";
 import { env } from "../env";
 import { ac, roles } from "./permissions";
 
@@ -48,7 +49,7 @@ export const auth = betterAuth({
             "RESEND_API_KEY is not configured. Cannot send password reset email in production.",
           );
         }
-        console.log(`[dev] Password reset email for ${user.email}: ${url}`);
+        logger.info("[dev] Password reset email", { email: user.email, url });
         return;
       }
       // Guaranteed by env.ts refine: RESEND_API_KEY and RESEND_FROM_EMAIL are always paired
@@ -67,14 +68,11 @@ export const auth = betterAuth({
         html: `<p>Click <a href="${safeUrl}">here</a> to reset your password.</p>`,
       });
       if (sendError) {
-        console.error(
-          "[auth] Resend API error sending password reset email:",
-          {
-            errorName: sendError.name,
-            errorMessage: sendError.message,
-            userEmail: user.email,
-          },
-        );
+        logger.error("[auth] Resend API error sending password reset email", {
+          errorName: sendError.name,
+          errorMessage: sendError.message,
+          userEmail: user.email,
+        });
         throw new Error(
           `Failed to send password reset email: ${sendError.message}`,
         );
@@ -94,7 +92,7 @@ export const auth = betterAuth({
             "RESEND_API_KEY is not configured. Cannot send verification email in production.",
           );
         }
-        console.log(`[dev] Verification email for ${user.email}: ${url}`);
+        logger.info("[dev] Verification email", { email: user.email, url });
         return;
       }
       // Guaranteed by env.ts refine: RESEND_API_KEY and RESEND_FROM_EMAIL are always paired
@@ -113,14 +111,11 @@ export const auth = betterAuth({
         html: `<p>Click <a href="${safeUrl}">here</a> to verify your email address.</p>`,
       });
       if (sendError) {
-        console.error(
-          "[auth] Resend API error sending verification email:",
-          {
-            errorName: sendError.name,
-            errorMessage: sendError.message,
-            userEmail: user.email,
-          },
-        );
+        logger.error("[auth] Resend API error sending verification email", {
+          errorName: sendError.name,
+          errorMessage: sendError.message,
+          userEmail: user.email,
+        });
         throw new Error(
           `Failed to send verification email: ${sendError.message}`,
         );
@@ -189,14 +184,11 @@ export const auth = betterAuth({
             .set({ invalidLoginAttempts: 0 })
             .where(eq(userTable.id, loggedInUser.id))
             .catch((err) => {
-              console.warn(
-                JSON.stringify({
-                  level: "warn",
-                  type: "lockout_counter_reset_failed",
-                  userId: loggedInUser.id,
-                  error: err instanceof Error ? err.message : String(err),
-                }),
-              );
+              logger.warn("Lockout counter reset failed", {
+                type: "lockout_counter_reset_failed",
+                userId: loggedInUser.id,
+                error: err instanceof Error ? err.message : String(err),
+              });
             });
         }
       } else {
@@ -223,14 +215,11 @@ export const auth = betterAuth({
             });
           }
         } catch (err) {
-          console.error(
-            JSON.stringify({
-              level: "error",
-              type: "lockout_increment_failed",
-              email,
-              error: err instanceof Error ? err.message : String(err),
-            }),
-          );
+          logger.error("Lockout increment failed", {
+            type: "lockout_increment_failed",
+            email,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     }),
@@ -266,14 +255,11 @@ export const auth = betterAuth({
             .set({ invalidLoginAttempts: 0, banned: false })
             .where(eq(userTable.id, existingUser.id))
             .catch((err) => {
-              console.warn(
-                JSON.stringify({
-                  level: "warn",
-                  type: "expired_ban_reset_failed",
-                  userId: existingUser.id,
-                  error: err instanceof Error ? err.message : String(err),
-                }),
-              );
+              logger.warn("Expired ban reset failed", {
+                type: "expired_ban_reset_failed",
+                userId: existingUser.id,
+                error: err instanceof Error ? err.message : String(err),
+              });
             });
         }
       }

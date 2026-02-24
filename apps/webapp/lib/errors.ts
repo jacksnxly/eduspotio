@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "@/lib/axiom";
 
 const DOC_ERROR_URL = "https://docs.eduspot.io/api/errors";
 
@@ -52,16 +53,12 @@ export function handleApiError(
       error.code === "rate_limit_exceeded"
         ? "warn"
         : "info";
-    const logFn = logLevel === "warn" ? console.warn : console.info;
-    logFn(
-      JSON.stringify({
-        level: logLevel,
-        code: error.code,
-        status: error.status,
-        message: error.message,
-        ...context,
-      }),
-    );
+    logger[logLevel](`${error.code} ${error.status}`, {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+      ...context,
+    });
     return Response.json(error.toJSON(), {
       status: error.status,
       headers: error.headers,
@@ -75,28 +72,22 @@ export function handleApiError(
       message,
     });
     // Log at info level (validation errors are client mistakes, not security events warranting warn)
-    console.info(
-      JSON.stringify({
-        level: "info",
-        code: zodApiError.code,
-        status: zodApiError.status,
-        message: zodApiError.message,
-        ...context,
-      }),
-    );
+    logger.info("Validation error", {
+      code: zodApiError.code,
+      status: zodApiError.status,
+      message: zodApiError.message,
+      ...context,
+    });
     return Response.json(zodApiError.toJSON(), { status: zodApiError.status });
   }
 
   const errorId = crypto.randomUUID();
-  console.error(
-    JSON.stringify({
-      level: "error",
-      errorId,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      ...context,
-    }),
-  );
+  logger.error("Unexpected error", {
+    errorId,
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    ...context,
+  });
 
   const fallback = new ApiError({
     code: "internal_server_error",

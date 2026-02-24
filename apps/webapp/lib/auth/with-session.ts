@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { after, NextRequest } from "next/server";
 import { z } from "zod";
+import { logger } from "@/lib/axiom";
 import { ApiError, handleApiError } from "../errors";
 import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
@@ -81,21 +82,14 @@ export function withSession<TBody = undefined>(
 
       // Log after response is sent to avoid adding latency to the client
       after(() => {
-        try {
-          console.info(
-            JSON.stringify({
-              level: "info",
-              type: "request",
-              method: req.method,
-              path: new URL(req.url).pathname,
-              userId: session.user.id,
-              status: finalResponse.status,
-              durationMs: Date.now() - startTime,
-            }),
-          );
-        } catch (err) {
-          console.error("[after] Request logging failed:", err);
-        }
+        logger.info("request", {
+          type: "request",
+          method: req.method,
+          path: new URL(req.url).pathname,
+          userId: session.user.id,
+          status: finalResponse.status,
+          durationMs: Date.now() - startTime,
+        });
       });
 
       return finalResponse;

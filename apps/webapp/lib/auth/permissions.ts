@@ -1,3 +1,4 @@
+import { logger } from "@/lib/axiom";
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/organization/access";
 
@@ -72,7 +73,7 @@ export type PermissionRequest = Parameters<
 export function hasPermission(role: Role, request: PermissionRequest): boolean {
   const roleDefinition = roles[role];
   if (!roleDefinition) {
-    console.error(`[permissions] Unknown role "${role}" — possible data corruption`);
+    logger.error("Unknown role — possible data corruption", { role });
     throw new Error(`Unknown role: ${role}`);
   }
   const result = (

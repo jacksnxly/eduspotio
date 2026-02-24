@@ -1,4 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit";
+import { logger } from "@/lib/axiom";
 import { getRedis } from "./redis";
 
 type RateLimitResult = {
@@ -39,7 +40,7 @@ export async function rateLimit(
 
     return { success, headers };
   } catch (error) {
-    console.error("[rate-limit] Redis error, allowing request:", error);
+    logger.error("Redis error, allowing request", { error: error instanceof Error ? error.message : String(error) });
     return { success: true, headers: {} };
   }
 }

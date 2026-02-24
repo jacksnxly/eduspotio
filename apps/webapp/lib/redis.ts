@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/axiom";
 import { env } from "./env";
 
 let _redis: Redis | null | undefined;
@@ -6,9 +7,7 @@ let _redis: Redis | null | undefined;
 function createRedisClient(): Redis | null {
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
     if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "[redis] UPSTASH_REDIS_REST_URL/TOKEN not set. Rate limiting on custom routes is disabled.",
-      );
+      logger.warn("UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting disabled");
     }
     return null;
   }

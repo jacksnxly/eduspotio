@@ -2,6 +2,7 @@ import { type TenantDatabase, tenantDB } from "@eduspot/db/helpers";
 import { headers } from "next/headers";
 import { after, NextRequest } from "next/server";
 import { z } from "zod";
+import { logger } from "@/lib/axiom";
 import { ApiError, handleApiError } from "../errors";
 import { rateLimit } from "../rate-limit";
 import { auth } from "./index";
@@ -126,7 +127,7 @@ export function withCommunity<TBody = undefined>(
         ) {
           org = null;
         } else {
-          console.error("[with-community] Unexpected error from getFullOrganization:", {
+          logger.error("Unexpected error from getFullOrganization", {
             communitySlug,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -148,16 +149,13 @@ export function withCommunity<TBody = undefined>(
         plan = rawPlan;
       } else {
         if (rawPlan !== undefined) {
-          console.warn(
-            JSON.stringify({
-              level: "warn",
-              type: "invalid_community_plan",
-              communityId: org.id,
-              communitySlug: org.slug,
-              rawPlan: String(rawPlan),
-              fallback: "free",
-            }),
-          );
+          logger.warn("Invalid community plan, defaulting to free", {
+            type: "invalid_community_plan",
+            communityId: org.id,
+            communitySlug: org.slug,
+            rawPlan: String(rawPlan),
+            fallback: "free",
+          });
         }
         plan = "free";
       }
@@ -197,9 +195,11 @@ export function withCommunity<TBody = undefined>(
 
       // 7. Check required permissions via role.authorize()
       if (!isRole(membership.role)) {
-        console.error(
-          `Invalid role "${membership.role}" for userId=${session.user.id} orgId=${org.id}`,
-        );
+        logger.error("Invalid role", {
+          role: membership.role,
+          userId: session.user.id,
+          orgId: org.id,
+        });
         throw new ApiError({
           code: "forbidden",
           message: "Invalid role.",
@@ -258,22 +258,15 @@ export function withCommunity<TBody = undefined>(
 
       // Log after response is sent to avoid adding latency to the client
       after(() => {
-        try {
-          console.info(
-            JSON.stringify({
-              level: "info",
-              type: "request",
-              method: req.method,
-              path: new URL(req.url).pathname,
-              userId: session.user.id,
-              communitySlug,
-              status: finalResponse.status,
-              durationMs: Date.now() - startTime,
-            }),
-          );
-        } catch (err) {
-          console.error("[after] Request logging failed:", err);
-        }
+        logger.info("request", {
+          type: "request",
+          method: req.method,
+          path: new URL(req.url).pathname,
+          userId: session.user.id,
+          communitySlug,
+          status: finalResponse.status,
+          durationMs: Date.now() - startTime,
+        });
       });
 
       return finalResponse;
