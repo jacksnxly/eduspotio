@@ -59,7 +59,7 @@ importers:
         version: 9.39.2(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.1.6
-        version: 16.1.6(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       tailwindcss:
         specifier: ^4
         version: 4.2.0
@@ -69,6 +69,15 @@ importers:
 
   apps/webapp:
     dependencies:
+      '@axiomhq/js':
+        specifier: ^1.4.0
+        version: 1.4.0
+      '@axiomhq/logging':
+        specifier: ^0.2.0
+        version: 0.2.0(@axiomhq/js@1.4.0)
+      '@axiomhq/nextjs':
+        specifier: ^0.2.0
+        version: 0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@eduspot/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -80,7 +89,7 @@ importers:
         version: 1.36.2
       better-auth:
         specifier: ^1.4.18
-        version: 1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1))
+        version: 1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1))
       next:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -132,7 +141,7 @@ importers:
         version: 9.39.2(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.1.6
-        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       tailwindcss:
         specifier: ^4
         version: 4.2.0
@@ -198,6 +207,26 @@ packages:
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  '@axiomhq/js@1.4.0':
+    resolution: {integrity: sha512-wC5x1ud/QJMstrjpicATkyY8+ZVWEl4WlXMtA5EZf7hkj0+b191yv4yynLxLEfr/MveXora9m6CWdJq4DsbcAg==}
+    engines: {node: '>=20'}
+
+  '@axiomhq/logging@0.2.0':
+    resolution: {integrity: sha512-Ro3GxgBAZQvsbx6Yjor9f6yx2IC7Wvqy0FC7HGcOjdtswl0refGB+gtKs94XyxbfnIo6MbKjHhHHkZOubjE+pQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@axiomhq/js': 1.4.0
+    peerDependenciesMeta:
+      '@axiomhq/js':
+        optional: true
+
+  '@axiomhq/nextjs@0.2.0':
+    resolution: {integrity: sha512-c90TKJf+r7jbWKctBcDZqAqfA+XTwA1L2BORf8Ipa2dBFvOj9RkzetIp/d2FTrGWJ9rLHAyOpKEER7mg4nOXDQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@axiomhq/logging': 0.2.0
+      next: '>=13'
 
   '@azure-rest/core-client@2.5.1':
     resolution: {integrity: sha512-EHaOXW0RYDKS5CFffnixdyRPak5ytiCtU7uXDcP/uiY+A6jFRwNGzzJBiznkCzvi5EYpY+YWinieqHb0oY916A==}
@@ -2174,6 +2203,9 @@ packages:
       picomatch:
         optional: true
 
+  fetch-retry@6.0.0:
+    resolution: {integrity: sha512-BUFj1aMubgib37I3v4q78fYo63Po7t4HUPTpQ6/QE6yK6cIQrP+W43FYToeTEyg5m2Y7eFUtijUuAv/PDlWuag==}
+
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
     engines: {node: '>=16.0.0'}
@@ -3484,6 +3516,19 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
+  '@axiomhq/js@1.4.0':
+    dependencies:
+      fetch-retry: 6.0.0
+
+  '@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0)':
+    optionalDependencies:
+      '@axiomhq/js': 1.4.0
+
+  '@axiomhq/nextjs@0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
+    dependencies:
+      '@axiomhq/logging': 0.2.0(@axiomhq/js@1.4.0)
+      next: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+
   '@azure-rest/core-client@2.5.1':
     dependencies:
       '@azure/abort-controller': 2.1.2
@@ -4699,7 +4744,7 @@ snapshots:
 
   baseline-browser-mapping@2.9.19: {}
 
-  better-auth@1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)):
+  better-auth@1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)):
     dependencies:
       '@better-auth/core': 1.4.18(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.18(@better-auth/core@1.4.18(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.0))
@@ -5367,6 +5412,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.3):
     optionalDependencies:
       picomatch: 4.0.3
+
+  fetch-retry@6.0.0: {}
 
   file-entry-cache@8.0.0:
     dependencies:

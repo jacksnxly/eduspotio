@@ -26,6 +26,10 @@ const envSchema = z.object({
   // Upstash Redis (optional — custom route rate limiting disabled if missing)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
+  // Axiom (optional — logs to console only when missing)
+  AXIOM_TOKEN: z.string().optional(),
+  AXIOM_DATASET: z.string().optional(),
 }).refine(
   (data) => !data.GOOGLE_CLIENT_ID === !data.GOOGLE_CLIENT_SECRET,
   { message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set or both be absent" },
@@ -38,6 +42,9 @@ const envSchema = z.object({
 ).refine(
   (data) => !data.UPSTASH_REDIS_REST_URL === !data.UPSTASH_REDIS_REST_TOKEN,
   { message: "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must both be set or both be absent" },
+).refine(
+  (data) => !data.AXIOM_TOKEN === !data.AXIOM_DATASET,
+  { message: "AXIOM_TOKEN and AXIOM_DATASET must both be set or both be absent" },
 );
 
 export type Env = z.infer<typeof envSchema>;
