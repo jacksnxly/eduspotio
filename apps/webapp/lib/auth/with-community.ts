@@ -16,8 +16,8 @@ export type WithCommunityContext = {
     id: string;
     name: string;
     slug: string;
-    logo: string | null | undefined;
-    metadata: string | null | undefined;
+    logo: string | null;
+    metadata: string | null;
     createdAt: Date;
   };
   membership: {
@@ -49,6 +49,11 @@ export function withCommunity(
     req: NextRequest,
     { params: initialParams }: { params: Promise<Record<string, string>> },
   ) => {
+    const errorContext: { method: string; path: string; userId?: string; communitySlug?: string } = {
+      method: req.method,
+      path: new URL(req.url).pathname,
+    };
+
     try {
       const params = (await initialParams) || {};
       const searchParams = Object.fromEntries(
@@ -68,6 +73,8 @@ export function withCommunity(
         });
       }
 
+      errorContext.userId = session.user.id;
+
       // 2. Rate limit by userId (after session check)
       const { success: rateLimitSuccess, headers: rateLimitHeaders } =
         await rateLimit(`user:${session.user.id}`);
@@ -82,6 +89,8 @@ export function withCommunity(
 
       // 3. Resolve community from URL param (slug or ID)
       const communitySlug = params.communitySlug || params.slug;
+      errorContext.communitySlug = communitySlug;
+
       if (!communitySlug) {
         throw new ApiError({
           code: "bad_request",
@@ -98,9 +107,22 @@ export function withCommunity(
           headers: reqHeaders,
           query: { organizationSlug: communitySlug },
         });
-      } catch {
-        // getFullOrganization throws for non-existent slugs
-        org = null;
+      } catch (error) {
+        // BetterAuth throws (not returns null) for non-existent or non-member slugs.
+        // Only treat known "not found" errors as 404; propagate everything else.
+        if (
+          error instanceof Error &&
+          (error.message.includes("not found") ||
+           error.message.includes("Organization not found"))
+        ) {
+          org = null;
+        } else {
+          console.error("[with-community] Unexpected error from getFullOrganization:", {
+            communitySlug,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error;
+        }
       }
 
       if (!org) {
@@ -141,7 +163,7 @@ export function withCommunity(
       }
 
       // 6. Execute within RLS tenant context
-      return await tenantDB(org.id, async (tx) => {
+      const response = await tenantDB(org.id, async (tx) => {
         return handler({
           req,
           params,
@@ -151,8 +173,8 @@ export function withCommunity(
             id: org.id,
             name: org.name,
             slug: org.slug,
-            logo: org.logo,
-            metadata: org.metadata,
+            logo: org.logo ?? null,
+            metadata: org.metadata ?? null,
             createdAt: org.createdAt,
           },
           membership: {
@@ -166,11 +188,19 @@ export function withCommunity(
           rateLimitHeaders,
         });
       });
-    } catch (error) {
-      return handleApiError(error, {
-        method: req.method,
-        path: new URL(req.url).pathname,
+
+      // Merge rate limit headers into the handler's response
+      const mergedHeaders = new Headers(response.headers);
+      for (const [key, value] of Object.entries(rateLimitHeaders)) {
+        mergedHeaders.set(key, String(value));
+      }
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: mergedHeaders,
       });
+    } catch (error) {
+      return handleApiError(error, errorContext);
     }
   };
 }

@@ -10,8 +10,10 @@ import { ac, roles } from "./permissions";
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 if (!resend && process.env.NODE_ENV === "production") {
-  console.error(
-    "[auth] CRITICAL: RESEND_API_KEY is not set in production. Email verification will fail.",
+  throw new Error(
+    "[auth] FATAL: RESEND_API_KEY is not set in production. " +
+    "Email verification is required but cannot send emails. " +
+    "Set RESEND_API_KEY and RESEND_FROM_EMAIL to enable email delivery.",
   );
 }
 
@@ -43,7 +45,8 @@ export const auth = betterAuth({
         console.log(`[dev] Password reset email for ${user.email}: ${url}`);
         return;
       }
-      const from = env.RESEND_FROM_EMAIL ?? "noreply@mail.eduspot.io";
+      // Guaranteed by env.ts refine: RESEND_API_KEY and RESEND_FROM_EMAIL are always paired
+      const from = env.RESEND_FROM_EMAIL!;
       const safeUrl = url
         .replaceAll("&", "&amp;")
         .replaceAll('"', "&quot;")
@@ -88,7 +91,8 @@ export const auth = betterAuth({
         console.log(`[dev] Verification email for ${user.email}: ${url}`);
         return;
       }
-      const from = env.RESEND_FROM_EMAIL ?? "noreply@mail.eduspot.io";
+      // Guaranteed by env.ts refine: RESEND_API_KEY and RESEND_FROM_EMAIL are always paired
+      const from = env.RESEND_FROM_EMAIL!;
       const safeUrl = url
         .replaceAll("&", "&amp;")
         .replaceAll('"', "&quot;")

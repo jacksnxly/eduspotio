@@ -45,7 +45,18 @@ export function withSession(handler: WithSessionHandler) {
         });
       }
 
-      return await handler({ req, session, rateLimitHeaders });
+      const response = await handler({ req, session, rateLimitHeaders });
+
+      // Merge rate limit headers into the handler's response
+      const mergedHeaders = new Headers(response.headers);
+      for (const [key, value] of Object.entries(rateLimitHeaders)) {
+        mergedHeaders.set(key, String(value));
+      }
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: mergedHeaders,
+      });
     } catch (error) {
       return handleApiError(error, {
         method: req.method,
