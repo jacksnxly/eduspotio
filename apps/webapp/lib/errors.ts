@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { generateErrorMessage } from "zod-error";
 import { logger } from "@/lib/axiom";
 
 const DOC_ERROR_URL = "https://docs.eduspot.io/api/errors";
@@ -66,7 +67,13 @@ export function handleApiError(
   }
 
   if (error instanceof z.ZodError) {
-    const message = error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const message = generateErrorMessage(error.issues, {
+      maxErrors: 3,
+      delimiter: { component: ": " },
+      path: { enabled: true, type: "objectNotation", label: "" },
+      code: { enabled: true, label: "" },
+      message: { enabled: true, label: "" },
+    });
     const zodApiError = new ApiError({
       code: "unprocessable_entity",
       message,
@@ -79,6 +86,56 @@ export function handleApiError(
       ...context,
     });
     return Response.json(zodApiError.toJSON(), { status: zodApiError.status });
+  }
+
+  // PostgreSQL native errors (Drizzle passes these through)
+  if (error && typeof error === "object" && "code" in error) {
+    const pgCode = (error as { code: string }).code;
+    if (pgCode === "23505") {
+      // unique_violation → 409 Conflict
+      const pgError = new ApiError({
+        code: "conflict",
+        message: (error as { detail?: string }).detail || "A record with this value already exists.",
+      });
+      logger.info("Database constraint violation", {
+        code: pgError.code,
+        status: pgError.status,
+        pgCode,
+        message: pgError.message,
+        ...context,
+      });
+      return Response.json(pgError.toJSON(), { status: pgError.status });
+    }
+    if (pgCode === "23503") {
+      // foreign_key_violation → 422
+      const pgError = new ApiError({
+        code: "unprocessable_entity",
+        message: "Referenced record does not exist.",
+      });
+      logger.info("Database constraint violation", {
+        code: pgError.code,
+        status: pgError.status,
+        pgCode,
+        message: pgError.message,
+        ...context,
+      });
+      return Response.json(pgError.toJSON(), { status: pgError.status });
+    }
+    if (pgCode === "23502") {
+      // not_null_violation → 422
+      const pgError = new ApiError({
+        code: "unprocessable_entity",
+        message: `Required field missing: ${(error as { column?: string }).column || "unknown"}`,
+      });
+      logger.info("Database constraint violation", {
+        code: pgError.code,
+        status: pgError.status,
+        pgCode,
+        message: pgError.message,
+        ...context,
+      });
+      return Response.json(pgError.toJSON(), { status: pgError.status });
+    }
   }
 
   const errorId = crypto.randomUUID();

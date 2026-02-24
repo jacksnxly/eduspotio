@@ -59,7 +59,7 @@ importers:
         version: 9.39.2(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.1.6
-        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       tailwindcss:
         specifier: ^4
         version: 4.2.0
@@ -77,7 +77,7 @@ importers:
         version: 0.2.0(@axiomhq/js@1.4.0)
       '@axiomhq/nextjs':
         specifier: ^0.2.0
-        version: 0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+        version: 0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@eduspot/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -89,7 +89,7 @@ importers:
         version: 1.36.2
       better-auth:
         specifier: ^1.4.18
-        version: 1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1))
+        version: 1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1))
       next:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -105,6 +105,9 @@ importers:
       zod:
         specifier: ^4.3.6
         version: 4.3.6
+      zod-error:
+        specifier: latest
+        version: 2.0.0(zod@4.3.6)
     devDependencies:
       '@eduspot/eslint-config':
         specifier: workspace:*
@@ -141,7 +144,7 @@ importers:
         version: 9.39.2(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.1.6
-        version: 16.1.6(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       tailwindcss:
         specifier: ^4
         version: 4.2.0
@@ -3503,6 +3506,11 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod-error@2.0.0:
+    resolution: {integrity: sha512-ivSoPm7h5SEGG8GUvQ7YTwrnEx36qNmUIU5hSIGcqcdl7+ZFoTrYXAdQEs3KP/rkihrrR9REEdOeGU+fWdMoNw==}
+    peerDependencies:
+      zod: ^4.0.0
+
   zod-validation-error@4.0.2:
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
     engines: {node: '>=18.0.0'}
@@ -3524,7 +3532,7 @@ snapshots:
     optionalDependencies:
       '@axiomhq/js': 1.4.0
 
-  '@axiomhq/nextjs@0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
+  '@axiomhq/nextjs@0.2.0(@axiomhq/logging@0.2.0(@axiomhq/js@1.4.0))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
     dependencies:
       '@axiomhq/logging': 0.2.0(@axiomhq/js@1.4.0)
       next: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -4744,7 +4752,7 @@ snapshots:
 
   baseline-browser-mapping@2.9.19: {}
 
-  better-auth@1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)):
+  better-auth@1.4.18(drizzle-orm@1.0.0-beta.15-859cf75(@neondatabase/serverless@1.0.2)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.16.0)(@upstash/redis@1.36.2)(mssql@11.0.1(@azure/core-client@1.10.1))(zod@4.3.6))(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)):
     dependencies:
       '@better-auth/core': 1.4.18(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.18(@better-auth/core@1.4.18(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.0))
@@ -6751,6 +6759,10 @@ snapshots:
   yallist@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod-error@2.0.0(zod@4.3.6):
+    dependencies:
+      zod: 4.3.6
 
   zod-validation-error@4.0.2(zod@4.3.6):
     dependencies:
