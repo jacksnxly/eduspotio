@@ -1,8 +1,11 @@
 import { db } from "@eduspot/db";
+import { user as userTable } from "@eduspot/db";
+import { eq, sql } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { organization } from "better-auth/plugins";
+import { admin, apiKey, bearer, organization } from "better-auth/plugins";
 import { Resend } from "resend";
 import { env } from "../env";
 import { ac, roles } from "./permissions";
@@ -16,6 +19,9 @@ if (!resend && process.env.NODE_ENV === "production") {
     "Set RESEND_API_KEY and RESEND_FROM_EMAIL to enable email delivery.",
   );
 }
+
+const LOCKOUT_THRESHOLD = 5;
+const LOCKOUT_DURATION_SECONDS = 15 * 60; // 15 minutes
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -150,13 +156,162 @@ export const auth = betterAuth({
       strategy: "compact",
     },
   },
+  user: {
+    additionalFields: {
+      invalidLoginAttempts: {
+        type: "number",
+        defaultValue: 0,
+        required: false,
+        input: false,
+      },
+    },
+  },
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const email = (ctx.body as Record<string, unknown> | undefined)?.email;
+      if (!email || typeof email !== "string") return;
+
+      const response = ctx.context?.returned as Response | undefined;
+      if (!response) return;
+
+      if (response.ok) {
+        // Successful login — reset counter via direct DB query
+        // (invalidLoginAttempts has input: false — auth.api.updateUser rejects it with 400)
+        const [loggedInUser] = await db
+          .select({ id: userTable.id })
+          .from(userTable)
+          .where(eq(userTable.email, email))
+          .limit(1);
+        if (loggedInUser) {
+          await db
+            .update(userTable)
+            .set({ invalidLoginAttempts: 0 })
+            .where(eq(userTable.id, loggedInUser.id))
+            .catch((err) => {
+              console.warn(
+                JSON.stringify({
+                  level: "warn",
+                  type: "lockout_counter_reset_failed",
+                  userId: loggedInUser.id,
+                  error: err instanceof Error ? err.message : String(err),
+                }),
+              );
+            });
+        }
+      } else {
+        // Failed login — increment counter (best-effort, must not corrupt the auth response)
+        try {
+          const [result] = await db
+            .update(userTable)
+            .set({
+              invalidLoginAttempts: sql`${userTable.invalidLoginAttempts} + 1`,
+            })
+            .where(eq(userTable.email, email))
+            .returning({
+              id: userTable.id,
+              invalidLoginAttempts: userTable.invalidLoginAttempts,
+            });
+
+          if (result && result.invalidLoginAttempts >= LOCKOUT_THRESHOLD) {
+            await auth.api.banUser({
+              body: {
+                userId: result.id,
+                banExpiresIn: LOCKOUT_DURATION_SECONDS,
+                banReason: "Too many failed login attempts",
+              },
+            });
+          }
+        } catch (err) {
+          console.error(
+            JSON.stringify({
+              level: "error",
+              type: "lockout_increment_failed",
+              email,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        }
+      }
+    }),
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const email = (ctx.body as Record<string, unknown> | undefined)?.email;
+      if (!email || typeof email !== "string") return;
+
+      const [existingUser] = await db
+        .select()
+        .from(userTable)
+        .where(eq(userTable.email, email))
+        .limit(1);
+
+      if (existingUser?.banned) {
+        if (
+          existingUser.banExpires &&
+          new Date(existingUser.banExpires) > new Date()
+        ) {
+          // Ban is active
+          const retryAfter = Math.ceil(
+            (new Date(existingUser.banExpires).getTime() - Date.now()) / 1000,
+          );
+          throw new APIError("TOO_MANY_REQUESTS", {
+            message:
+              "Account temporarily locked due to too many failed login attempts.",
+            headers: { "Retry-After": String(retryAfter) },
+          });
+        } else {
+          // Ban expired — reset counter so user gets a fresh set of attempts
+          await db
+            .update(userTable)
+            .set({ invalidLoginAttempts: 0, banned: false })
+            .where(eq(userTable.id, existingUser.id))
+            .catch((err) => {
+              console.warn(
+                JSON.stringify({
+                  level: "warn",
+                  type: "expired_ban_reset_failed",
+                  userId: existingUser.id,
+                  error: err instanceof Error ? err.message : String(err),
+                }),
+              );
+            });
+        }
+      }
+    }),
+  },
   plugins: [
     organization({
       ac,
       roles,
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
+      // BetterAuth accepts custom fields at runtime but its TS types don't
+      // include them — assert to satisfy the type checker.
+      schema: {
+        organization: {
+          fields: {
+            plan: {
+              type: "string",
+              defaultValue: "free",
+              required: false,
+              input: false,
+            },
+          },
+        } as Record<string, unknown>,
+      },
     }),
+    admin(),
+    apiKey({
+      defaultPrefix: "edsp",
+      enableSessionForAPIKeys: true,
+      enableMetadata: true,
+      rateLimit: {
+        enabled: true,
+        timeWindow: 60_000,
+        maxRequests: 60,
+      },
+    }),
+    bearer(),
     nextCookies(),
   ],
 });
