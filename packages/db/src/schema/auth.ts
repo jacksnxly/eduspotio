@@ -92,8 +92,8 @@ export const invitation = pgTable("invitation", {
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
-  role: text("role").notNull(),
-  status: text("status").notNull().default("pending"),
+  role: text("role").notNull().$type<"owner" | "moderator" | "creator" | "member">(),
+  status: text("status").notNull().default("pending").$type<"pending" | "accepted" | "rejected" | "canceled">(),
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
